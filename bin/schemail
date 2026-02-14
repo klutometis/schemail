@@ -1,0 +1,328 @@
+#!/usr/bin/env racket
+#lang racket
+
+;; schemail - CLI for LLM-powered email filtering
+
+(require "../src/oauth.rkt"
+         "../src/gmail.rkt"
+         "../src/filters.rkt"
+         "../config/filters.rkt"
+         "../config/preferences.rkt")
+
+;; ============================================================================
+;; CLI Argument Parsing
+;; ============================================================================
+
+(define (show-help)
+  (displayln "
+╔════════════════════════════════════════════════════════════╗
+║                                                            ║
+║  schemail - Intelligent Email Filtering                   ║
+║                                                            ║
+╚════════════════════════════════════════════════════════════╝
+
+USAGE:
+  schemail process [OPTIONS]     Process emails through filters
+  schemail daemon [OPTIONS]      Run as daemon (polls for new emails)
+  schemail test                  Run test suite
+  schemail help                  Show this help
+
+PROCESS OPTIONS:
+  --last N                  Process last N emails (default: 10)
+  --unread                  Process only unread emails
+  --since DATE              Process emails since date (YYYY-MM-DD)
+  --until DATE              Process emails until date (YYYY-MM-DD)
+  --query \"QUERY\"           Custom Gmail query
+  
+  --filter STRATEGY         Filter strategy to use (default: hybrid)
+                            Options: hybrid, pure-llm, selective-llm
+  
+  --execute                 Actually execute actions (default: dry-run)
+  --dry-run                 Only show what would happen (default)
+  
+  --interactive             Interactively review each email
+  --verbose                 Show detailed output
+
+DAEMON OPTIONS:
+  --interval N              Poll interval in minutes (default: 5)
+  --query \"QUERY\"           Gmail query for emails to process
+
+EXAMPLES:
+  # Dry-run on last 10 emails (safe)
+  schemail process --last 10
+  
+  # Actually process last 50 emails with hybrid strategy
+  schemail process --last 50 --filter hybrid --execute
+  
+  # Process unread emails only
+  schemail process --unread --execute
+  
+  # Process emails from last week
+  schemail process --since \"2026-02-07\" --execute
+  
+  # Interactive mode (review each email)
+  schemail process --last 20 --interactive
+  
+  # Run as daemon (checks every 5 minutes)
+  schemail daemon --interval 5
+
+FILTER STRATEGIES:
+  hybrid       - Fast pattern matching + LLM fallback (recommended)
+  pure-llm     - LLM processes every email (slow, expensive)
+  selective-llm - Pattern matching first, LLM only for ambiguous cases
+
+NOTES:
+  - Default mode is DRY-RUN for safety
+  - Use --execute to actually modify emails
+  - First run will trigger OAuth flow
+  - Costs ~$0.007 per email with LLM (~$20/month for 100/day)
+")
+  (exit 0))
+
+;; Parse command-line arguments
+(define (parse-args args)
+  (define options (make-hash))
+  (hash-set! options 'command #f)
+  (hash-set! options 'last 10)
+  (hash-set! options 'dry-run? #t)
+  (hash-set! options 'filter 'hybrid)
+  (hash-set! options 'unread? #f)
+  (hash-set! options 'interactive? #f)
+  (hash-set! options 'verbose? #f)
+  (hash-set! options 'interval 5)
+  (hash-set! options 'query #f)
+  (hash-set! options 'since #f)
+  (hash-set! options 'until #f)
+  
+  (let loop ([args args])
+    (match args
+      ['() options]
+      
+      ;; Commands
+      [(list "help" rest ...)
+       (show-help)]
+      [(list "process" rest ...)
+       (hash-set! options 'command 'process)
+       (loop rest)]
+      [(list "daemon" rest ...)
+       (hash-set! options 'command 'daemon)
+       (loop rest)]
+      [(list "test" rest ...)
+       (hash-set! options 'command 'test)
+       (loop rest)]
+      
+      ;; Options
+      [(list "--last" n rest ...)
+       (hash-set! options 'last (string->number n))
+       (loop rest)]
+      [(list "--unread" rest ...)
+       (hash-set! options 'unread? #t)
+       (loop rest)]
+      [(list "--since" date rest ...)
+       (hash-set! options 'since date)
+       (loop rest)]
+      [(list "--until" date rest ...)
+       (hash-set! options 'until date)
+       (loop rest)]
+      [(list "--query" q rest ...)
+       (hash-set! options 'query q)
+       (loop rest)]
+      [(list "--filter" strategy rest ...)
+       (hash-set! options 'filter (string->symbol strategy))
+       (loop rest)]
+      [(list "--execute" rest ...)
+       (hash-set! options 'dry-run? #f)
+       (loop rest)]
+      [(list "--dry-run" rest ...)
+       (hash-set! options 'dry-run? #t)
+       (loop rest)]
+      [(list "--interactive" rest ...)
+       (hash-set! options 'interactive? #t)
+       (loop rest)]
+      [(list "--verbose" rest ...)
+       (hash-set! options 'verbose? #t)
+       (loop rest)]
+      [(list "--interval" n rest ...)
+       (hash-set! options 'interval (string->number n))
+       (loop rest)]
+      
+      [else
+       (displayln (format "Unknown option: ~a" (car args)))
+       (displayln "Run 'schemail help' for usage.")
+       (exit 1)]))
+  
+  options)
+
+;; ============================================================================
+;; Commands
+;; ============================================================================
+
+;; Process emails through filters
+(define (cmd-process options)
+  (displayln "\n╔════════════════════════════════════════════════════════════╗")
+  (displayln "║  Processing Emails                                         ║")
+  (displayln "╚════════════════════════════════════════════════════════════╝\n")
+  
+  (define dry-run? (hash-ref options 'dry-run?))
+  (define filter-strategy (hash-ref options 'filter))
+  (define last-n (hash-ref options 'last))
+  (define unread? (hash-ref options 'unread?))
+  (define query (hash-ref options 'query))
+  (define since (hash-ref options 'since))
+  (define until (hash-ref options 'until))
+  (define interactive? (hash-ref options 'interactive?))
+  
+  (displayln (format "Mode: ~a" (if dry-run? "DRY-RUN (safe)" "LIVE (will modify emails)")))
+  (displayln (format "Filter Strategy: ~a" filter-strategy))
+  (displayln "")
+  
+  ;; Authorize Gmail
+  (authorize-gmail)
+  
+  ;; Build Gmail query
+  (define gmail-query
+    (cond
+      [query query]
+      [unread? "is:unread"]
+      [(and since until) (format "after:~a before:~a" since until)]
+      [since (format "after:~a" since)]
+      [until (format "before:~a" until)]
+      [else #f]))
+  
+  ;; Fetch messages
+  (displayln (format "Fetching ~a emails~a..."
+                     (if last-n last-n "all")
+                     (if gmail-query (format " (query: ~a)" gmail-query) "")))
+  
+  (define messages-response 
+    (gmail-list-messages #:query gmail-query 
+                        #:max-results (or last-n 100)))
+  
+  (define message-ids 
+    (map (λ (m) (hash-ref m 'id))
+         (hash-ref messages-response 'messages '())))
+  
+  (when (empty? message-ids)
+    (displayln "No messages found!")
+    (exit 0))
+  
+  (displayln (format "Found ~a message(s)\n" (length message-ids)))
+  
+  ;; Select filter strategy
+  (define filters
+    (match filter-strategy
+      ['hybrid filters-hybrid]
+      ['pure-llm filters-pure-llm]
+      ['selective-llm filters-selective-llm]
+      [else 
+       (displayln (format "Unknown filter strategy: ~a" filter-strategy))
+       (displayln "Using hybrid strategy instead.")
+       filters-hybrid]))
+  
+  ;; Process each message
+  (for ([id message-ids]
+        [i (in-naturals 1)])
+    (displayln (format "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
+    (displayln (format "MESSAGE ~a/~a" i (length message-ids)))
+    (displayln (format "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
+    
+    (define msg (gmail-get-message id))
+    
+    (define should-process?
+      (if interactive?
+          (let ()
+            (displayln "\nPress Enter to process, 's' to skip, 'q' to quit:")
+            (define response (read-line))
+            (cond
+              [(equal? response "q") (exit 0)]
+              [(equal? response "s") #f]
+              [else #t]))
+          #t))
+    
+    (when should-process?
+      (process-message-with-filters msg filters #:dry-run? dry-run?)))
+  
+  (displayln "\n✓ Done processing all messages!"))
+
+;; Run as daemon
+(define (cmd-daemon options)
+  (displayln "\n╔════════════════════════════════════════════════════════════╗")
+  (displayln "║  Daemon Mode                                               ║")
+  (displayln "╚════════════════════════════════════════════════════════════╝\n")
+  
+  (define interval-minutes (hash-ref options 'interval))
+  (define interval-seconds (* interval-minutes 60))
+  (define query (hash-ref options 'query "is:unread"))
+  
+  (displayln (format "Polling interval: ~a minutes" interval-minutes))
+  (displayln (format "Query: ~a" query))
+  (displayln "Press Ctrl+C to stop.\n")
+  
+  ;; Authorize once at startup
+  (authorize-gmail)
+  
+  (let loop ()
+    (displayln (format "\n[~a] Checking for new emails..." 
+                      (~a (seconds->date (current-seconds)))))
+    
+    (with-handlers ([exn:fail? 
+                     (λ (e)
+                       (displayln (format "Error: ~a" (exn-message e)))
+                       (displayln "Continuing..."))])
+      
+      (define messages-response 
+        (gmail-list-messages #:query query #:max-results 50))
+      
+      (define message-ids 
+        (map (λ (m) (hash-ref m 'id))
+             (hash-ref messages-response 'messages '())))
+      
+      (if (empty? message-ids)
+          (displayln "  No new messages.")
+          (begin
+            (displayln (format "  Found ~a new message(s), processing..." 
+                              (length message-ids)))
+            (for ([id message-ids])
+              (define msg (gmail-get-message id))
+              (process-message-with-filters msg filters-hybrid #:dry-run? #f)))))
+    
+    (displayln (format "  Sleeping for ~a minutes..." interval-minutes))
+    (sleep interval-seconds)
+    (loop)))
+
+;; Run test suite
+(define (cmd-test options)
+  (displayln "\n╔════════════════════════════════════════════════════════════╗")
+  (displayln "║  Running Test Suite                                        ║")
+  (displayln "╚════════════════════════════════════════════════════════════╝\n")
+  
+  (system "racket src/test-llm.rkt"))
+
+;; ============================================================================
+;; Main Entry Point
+;; ============================================================================
+
+(define (main args)
+  (when (or (empty? args) 
+            (member (car args) '("--help" "-h" "help")))
+    (show-help))
+  
+  (define options (parse-args args))
+  (define command (hash-ref options 'command))
+  
+  (unless command
+    (displayln "Error: No command specified.")
+    (displayln "Run 'schemail help' for usage.")
+    (exit 1))
+  
+  (match command
+    ['process (cmd-process options)]
+    ['daemon (cmd-daemon options)]
+    ['test (cmd-test options)]
+    [else 
+     (displayln (format "Unknown command: ~a" command))
+     (exit 1)]))
+
+;; Run if executed directly
+(module+ main
+  (main (vector->list (current-command-line-arguments))))

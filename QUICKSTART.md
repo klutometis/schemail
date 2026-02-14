@@ -15,7 +15,20 @@ An intelligent email filtering system built in Racket that uses **Claude AI** to
 
 ## Quick Test
 
-Test the LLM on your recent emails (dry-run, no changes):
+### Using the CLI (Recommended)
+
+```bash
+# Process last 10 emails (dry-run, safe)
+schemail process --last 10
+
+# Process with hybrid strategy (fast rules + LLM)
+schemail process --last 20 --filter hybrid
+
+# Actually execute (make real changes!)
+schemail process --last 5 --execute
+```
+
+### Using the Test Suite
 
 ```bash
 cd /home/danenberg/prg/email
@@ -24,7 +37,7 @@ racket src/test-llm.rkt
 ```
 
 The system will:
-1. Fetch your 5 most recent emails
+1. Fetch recent emails
 2. Send each to Claude with your preferences
 3. Show what actions Claude would take (but not execute them)
 
@@ -132,35 +145,52 @@ Three strategies available:
         (llm-agent email-assistant-prompt))
 ```
 
-## Testing Modes
+## CLI Usage
 
-### 1. Dry-Run (Safe, Recommended First)
-```bash
-racket src/test-llm.rkt
-# Choose option 1
-```
-Shows what would happen without making changes.
+### Process Emails
 
-### 2. Interactive Mode
 ```bash
-racket src/test-llm.rkt
-# Choose option 2
-```
-Select a specific email to test.
+# Dry-run on last 10 emails (default, safe)
+schemail process --last 10
 
-### 3. Batch Test with Summary
-```bash
-racket src/test-llm.rkt
-# Choose option 3
-```
-Process many emails and see statistics.
+# Process last 50 with hybrid strategy
+schemail process --last 50 --filter hybrid
 
-### 4. Live Mode (Makes Real Changes!)
-```bash
-racket src/test-llm.rkt
-# Choose option 4
+# Actually execute actions (LIVE MODE)
+schemail process --last 10 --execute
+
+# Process only unread emails
+schemail process --unread --execute
+
+# Process emails from a date range
+schemail process --since "2026-02-01" --until "2026-02-14"
+
+# Interactive mode (review each email)
+schemail process --last 20 --interactive
+
+# Custom Gmail query
+schemail process --query "from:linkedin.com" --execute
 ```
-Actually modifies an email in Gmail. Use carefully!
+
+### Run as Daemon
+
+```bash
+# Check for new emails every 5 minutes
+schemail daemon --interval 5
+
+# Daemon with custom query
+schemail daemon --interval 3 --query "is:unread -from:spam"
+```
+
+### Testing Modes (Alternative)
+
+```bash
+# Run full test suite
+schemail test
+
+# Or use the interactive test tool:
+racket src/test-llm.rkt
+```
 
 ## What's Next?
 
