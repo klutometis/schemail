@@ -176,8 +176,8 @@ NOTES:
   (displayln (format "Filter Strategy: ~a" filter-strategy))
   (displayln "")
   
-  ;; Authorize Gmail
-  (authorize-gmail)
+  ;; Get Gmail token (will authorize if needed)
+  (get-gmail-token)
   
   ;; Build Gmail query
   (define gmail-query
@@ -258,8 +258,8 @@ NOTES:
   (displayln (format "Query: ~a" query))
   (displayln "Press Ctrl+C to stop.\n")
   
-  ;; Authorize once at startup
-  (authorize-gmail)
+  ;; Get Gmail token once at startup (will authorize if needed)
+  (get-gmail-token)
   
   (let loop ()
     (displayln (format "\n[~a] Checking for new emails..." 

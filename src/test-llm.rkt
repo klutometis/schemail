@@ -17,7 +17,7 @@
   (displayln "║  Testing LLM Tool Calling (DRY RUN MODE)                  ║")
   (displayln "╚════════════════════════════════════════════════════════════╝\n")
   
-  (authorize-gmail)
+  (get-gmail-token)
   
   (define messages-response (gmail-list-messages #:max-results max-results))
   (define message-ids (map (λ (m) (hash-ref m 'id)) 
@@ -48,7 +48,7 @@
   (displayln "║  Processing Email FOR REAL (LIVE MODE)                    ║")
   (displayln "╚════════════════════════════════════════════════════════════╝\n")
   
-  (authorize-gmail)
+  (get-gmail-token)
   
   (define msg (gmail-get-message message-id))
   (displayln (format "From: ~a" (message-from msg)))
@@ -73,7 +73,7 @@
   (displayln "║  Interactive Testing Mode                                 ║")
   (displayln "╚════════════════════════════════════════════════════════════╝\n")
   
-  (authorize-gmail)
+  (get-gmail-token)
   
   (define messages-response (gmail-list-messages #:max-results 10))
   (define messages (hash-ref messages-response 'messages '()))
@@ -120,7 +120,7 @@
   (displayln "║  Batch Testing with Summary                                ║")
   (displayln "╚════════════════════════════════════════════════════════════╝\n")
   
-  (authorize-gmail)
+  (get-gmail-token)
   
   (define messages-response (gmail-list-messages #:max-results max-results))
   (define message-ids (map (λ (m) (hash-ref m 'id)) 
