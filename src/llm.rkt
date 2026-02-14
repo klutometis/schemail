@@ -154,12 +154,20 @@
        (displayln (format "  → Applying label: ~a (model suggested: ~a)" 
                          label-name raw-label-name))
        
-       ;; Find or create label
-       (define label-id (gmail-find-label-by-name label-name))
-       (unless label-id
-         (displayln (format "  → Creating new label: ~a" label-name))
-         (define new-label (gmail-create-label label-name))
-         (set! label-id (hash-ref new-label 'id)))
+        ;; Ensure parent label exists (for proper nesting)
+        (when (string-contains? label-name "/")
+          (define parent-name (car (string-split label-name "/")))
+          (define parent-id (gmail-find-label-by-name parent-name))
+          (unless parent-id
+            (displayln (format "  → Creating parent label: ~a" parent-name))
+            (gmail-create-label parent-name)))
+        
+        ;; Find or create child label
+        (define label-id (gmail-find-label-by-name label-name))
+        (unless label-id
+          (displayln (format "  → Creating label: ~a" label-name))
+          (define new-label (gmail-create-label label-name))
+          (set! label-id (hash-ref new-label 'id)))
        
        ;; Apply label
        (gmail-modify-message message-id #:add-labels (list label-id))
