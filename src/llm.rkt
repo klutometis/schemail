@@ -141,15 +141,12 @@
       ["apply_label"
        (define raw-label-name (hash-ref tool-input 'label_name))
        
-       ;; Add Schemail/ prefix (capitalized) if not already present
-       (define label-name
-         (if (or (string-prefix? raw-label-name "Schemail/")
-                 (string-prefix? raw-label-name "schemail/"))
-             raw-label-name
-             (string-append "Schemail/" 
-                           ;; Capitalize first letter of label
-                           (string-append (string-upcase (substring raw-label-name 0 1))
-                                         (substring raw-label-name 1)))))
+        ;; Add Schemail/ prefix (capitalized) if not already present
+        (define label-name
+          (if (or (string-prefix? raw-label-name "Schemail/")
+                  (string-prefix? raw-label-name "schemail/"))
+              raw-label-name
+              (string-append "Schemail/" (string-titlecase raw-label-name))))
        
        (displayln (format "  → Applying label: ~a (model suggested: ~a)" 
                          label-name raw-label-name))
