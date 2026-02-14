@@ -132,6 +132,17 @@
   (displayln (format "\n  Tool: ~a" tool-name))
   (displayln (format "  Input: ~a" tool-input))
   
+  ;; For apply_label, show the transformed label name
+  (when (equal? tool-name "apply_label")
+    (define raw-label-name (hash-ref tool-input 'label_name))
+    (define label-name
+      (if (or (string-prefix? raw-label-name "Schemail/")
+              (string-prefix? raw-label-name "schemail/"))
+          raw-label-name
+          (string-append "Schemail/" (string-titlecase raw-label-name))))
+    (displayln (format "  → Will apply: ~a (model suggested: ~a)" 
+                      label-name raw-label-name)))
+  
   (when dry-run?
     (displayln "  [DRY RUN - not executing]")
     (void))
@@ -148,8 +159,7 @@
               raw-label-name
               (string-append "Schemail/" (string-titlecase raw-label-name))))
        
-       (displayln (format "  → Applying label: ~a (model suggested: ~a)" 
-                         label-name raw-label-name))
+       (displayln (format "  → Applying label: ~a" label-name))
        
         ;; Ensure parent label exists (for proper nesting)
         (when (string-contains? label-name "/")
