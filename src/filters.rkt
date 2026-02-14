@@ -154,7 +154,14 @@
       (begin
         (displayln "\n  [DRY RUN MODE - not executing actions]")
         (for ([action actions])
-          (displayln (format "    Would execute: ~a" action)))
+          (match action
+            ;; Special case: llm-agent should actually run in dry-run to show decisions
+            [`(llm-agent ,preferences)
+             (displayln "    Calling LLM to see what it would do...")
+             (llm-process-email message preferences #:dry-run? #t)]
+            ;; Everything else just show what would happen
+            [else
+             (displayln (format "    Would execute: ~a" action))]))
         #f)
       (exec-actions actions (hash-ref message 'id))))
 
