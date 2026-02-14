@@ -195,7 +195,7 @@ NOTES:
   
   ;; Build Gmail query
   (define skip-processed? (hash-ref options 'skip-processed?))
-  (define base-query
+  (define gmail-query
     (cond
       [query query]
       [unread? "is:unread"]
@@ -203,17 +203,6 @@ NOTES:
       [since (format "after:~a" since)]
       [until (format "before:~a" until)]
       [else #f]))
-  
-  ;; Add skip-processed filter if requested
-  ;; Note: Gmail doesn't support wildcards in label search, so we need to
-  ;; filter by checking all Schemail child labels
-  (define gmail-query
-    (if skip-processed?
-        (let ([schemail-exclude "-label:Schemail/Receipt -label:Schemail/Shipping -label:Schemail/Social -label:Schemail/Newsletter -label:Schemail/Notification"])
-          (if base-query
-              (format "~a ~a" base-query schemail-exclude)
-              schemail-exclude))
-        base-query))
   
   ;; Fetch messages
   (displayln (format "Fetching ~a emails~a..."
@@ -254,16 +243,30 @@ NOTES:
     
     (define msg (gmail-get-message id))
     
+    ;; Check if already processed (has any Schemail/* label)
+    (define already-processed?
+      (and skip-processed?
+           (let ([labels (hash-ref msg 'labelIds '())])
+             (for/or ([label-id labels])
+               ;; Get label name and check if it starts with Schemail/
+               (define label-info (gmail-get-label label-id))
+               (define label-name (hash-ref label-info 'name ""))
+               (string-prefix? label-name "Schemail/")))))
+    
+    (when already-processed?
+      (displayln "  ⊘ Skipping - already processed (has Schemail/* label)"))
+    
     (define should-process?
-      (if interactive?
-          (let ()
-            (displayln "\nPress Enter to process, 's' to skip, 'q' to quit:")
-            (define response (read-line))
-            (cond
-              [(equal? response "q") (exit 0)]
-              [(equal? response "s") #f]
-              [else #t]))
-          #t))
+      (and (not already-processed?)
+           (if interactive?
+               (let ()
+                 (displayln "\nPress Enter to process, 's' to skip, 'q' to quit:")
+                 (define response (read-line))
+                 (cond
+                   [(equal? response "q") (exit 0)]
+                   [(equal? response "s") #f]
+                   [else #t]))
+               #t)))
     
     (when should-process?
       (process-message-with-filters msg filters #:dry-run? dry-run?)))
