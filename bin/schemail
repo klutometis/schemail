@@ -41,6 +41,7 @@ PROCESS OPTIONS:
   --execute                 Actually execute actions (default: dry-run)
   --dry-run                 Only show what would happen (default)
   
+  --skip-processed          Skip emails already labeled with Schemail/*
   --interactive             Interactively review each email
   --verbose                 Show detailed output
 
@@ -98,6 +99,7 @@ NOTES:
   (hash-set! options 'query #f)
   (hash-set! options 'since #f)
   (hash-set! options 'until #f)
+  (hash-set! options 'skip-processed? #f)
   
   (let loop ([args args])
     (match args
@@ -148,6 +150,9 @@ NOTES:
       [(list "--interactive" rest ...)
        (hash-set! options 'interactive? #t)
        (loop rest)]
+      [(list "--skip-processed" rest ...)
+       (hash-set! options 'skip-processed? #t)
+       (loop rest)]
       [(list "--verbose" rest ...)
        (hash-set! options 'verbose? #t)
        (loop rest)]
@@ -189,7 +194,8 @@ NOTES:
   (get-gmail-token)
   
   ;; Build Gmail query
-  (define gmail-query
+  (define skip-processed? (hash-ref options 'skip-processed?))
+  (define base-query
     (cond
       [query query]
       [unread? "is:unread"]
@@ -197,6 +203,17 @@ NOTES:
       [since (format "after:~a" since)]
       [until (format "before:~a" until)]
       [else #f]))
+  
+  ;; Add skip-processed filter if requested
+  ;; Note: Gmail doesn't support wildcards in label search, so we need to
+  ;; filter by checking all Schemail child labels
+  (define gmail-query
+    (if skip-processed?
+        (let ([schemail-exclude "-label:Schemail/Receipt -label:Schemail/Shipping -label:Schemail/Social -label:Schemail/Newsletter -label:Schemail/Notification"])
+          (if base-query
+              (format "~a ~a" base-query schemail-exclude)
+              schemail-exclude))
+        base-query))
   
   ;; Fetch messages
   (displayln (format "Fetching ~a emails~a..."
