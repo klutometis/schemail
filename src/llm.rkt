@@ -28,10 +28,10 @@
 
 (define TOOLS
   '(#hasheq((name . "apply_label")
-            (description . "Apply a Gmail label to this email. Creates the label if it doesn't exist. Use this for categorizing emails (e.g., 'action', 'notification', 'recruiter').")
+            (description . "Apply a Gmail label to this email. Use one of: receipt, shipping, social, newsletter, notification.")
             (input_schema . #hasheq((type . "object")
                                     (properties . #hasheq((label_name . #hasheq((type . "string")
-                                                                                (description . "Name of the label (e.g., 'action', 'notification', 'recruiter', 'receipts')")))))
+                                                                                (description . "Label name: receipt, shipping, social, newsletter, or notification")))))
                                     (required . ("label_name")))))
     #hasheq((name . "archive_email")
             (description . "Remove this email from the inbox (archives it). Use for emails that don't need immediate attention.")
@@ -139,8 +139,16 @@
   (unless dry-run?
     (match tool-name
       ["apply_label"
-       (define label-name (hash-ref tool-input 'label_name))
-       (displayln (format "  → Applying label: ~a" label-name))
+       (define raw-label-name (hash-ref tool-input 'label_name))
+       
+       ;; Add schemail/ prefix if not already present
+       (define label-name
+         (if (string-prefix? raw-label-name "schemail/")
+             raw-label-name
+             (string-append "schemail/" raw-label-name)))
+       
+       (displayln (format "  → Applying label: ~a (model suggested: ~a)" 
+                         label-name raw-label-name))
        
        ;; Find or create label
        (define label-id (gmail-find-label-by-name label-name))
@@ -151,7 +159,12 @@
        
        ;; Apply label
        (gmail-modify-message message-id #:add-labels (list label-id))
-       (displayln "  ✓ Label applied")]
+       (displayln "  ✓ Label applied")
+       
+       ;; Auto-archive: any schemail/ label means it's automated
+       (displayln "  → Auto-archiving (schemail/ label detected)")
+       (gmail-modify-message message-id #:remove-labels '("INBOX"))
+       (displayln "  ✓ Archived")]
       
       ["archive_email"
        (displayln "  → Archiving email (removing from INBOX)")

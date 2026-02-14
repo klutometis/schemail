@@ -2,7 +2,10 @@
 
 ;; High-level instructions for the email assistant
 
-(provide email-assistant-prompt)
+(require "preferences-simple.rkt")
+
+(provide email-assistant-prompt
+         simple-agent-prompt)
 
 (define email-assistant-prompt
   "You are my personal email assistant. Process each email according to these rules:

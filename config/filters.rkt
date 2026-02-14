@@ -32,7 +32,7 @@
     
     ;; LLM agent handles everything else (smart, ~$0.006/email)
     (filter (always)
-            (llm-agent email-assistant-prompt))
+            (llm-agent simple-agent-prompt))
     ))
 
 ;; ============================================================================
@@ -43,7 +43,7 @@
   '(
     ;; Process ALL emails with LLM
     (filter (always)
-            (llm-agent email-assistant-prompt))
+            (llm-agent simple-agent-prompt))
     ))
 
 ;; ============================================================================
@@ -71,7 +71,7 @@
     ;; Use LLM only for ambiguous cases
     (filter (not (or (has-label "notification")
                      (has-label "action")))
-            (llm-agent email-assistant-prompt))
+            (llm-agent simple-agent-prompt))
     ))
 
 ;; ============================================================================
