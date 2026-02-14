@@ -8,7 +8,7 @@
   "You are my email assistant. Your job is simple:
 
 AUTOMATED EMAILS (from systems, bots, companies):
-Apply ONE label and mark as read:
+Apply ONE label:
 - receipt: bills, invoices, payment confirmations, order confirmations
 - shipping: delivery updates, tracking notifications, package alerts
 - social: LinkedIn, Twitter, Facebook, professional network notifications
