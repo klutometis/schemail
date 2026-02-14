@@ -74,6 +74,19 @@
               #:when (string=? (hash-ref label 'name) name))
     (hash-ref label 'id)))
 
+;; Update label properties (e.g., visibility)
+(define (gmail-update-label label-id
+                            #:label-list-visibility [label-list-visibility #f]
+                            #:message-list-visibility [message-list-visibility #f]
+                            #:name [name #f])
+  (define data (make-hash))
+  (when label-list-visibility (hash-set! data 'labelListVisibility label-list-visibility))
+  (when message-list-visibility (hash-set! data 'messageListVisibility message-list-visibility))
+  (when name (hash-set! data 'name name))
+  (gmail-api-request (format "labels/~a" label-id)
+                     #:method "PATCH"
+                     #:data (jsexpr->string data)))
+
 ;; ============================================================================
 ;; Helpers
 ;; ============================================================================
@@ -113,15 +126,14 @@
          gmail-get-message
          gmail-modify-message
          gmail-batch-modify
-         
          gmail-list-labels
          gmail-get-label
          gmail-create-label
+         gmail-update-label
          gmail-find-label-by-name
-         
-         message-header
          message-subject
          message-from
          message-date
          message-snippet
+         message-header
          message-has-label?)

@@ -24,6 +24,7 @@
 USAGE:
   schemail process [OPTIONS]     Process emails through filters
   schemail daemon [OPTIONS]      Run as daemon (polls for new emails)
+  schemail labels [OPTIONS]      Manage Gmail labels
   schemail test                  Run test suite
   schemail help                  Show this help
 
@@ -46,6 +47,10 @@ PROCESS OPTIONS:
 DAEMON OPTIONS:
   --interval N              Poll interval in minutes (default: 5)
   --query \"QUERY\"           Gmail query for emails to process
+
+LABELS OPTIONS:
+  hide-except PREFIX        Hide all labels except those starting with PREFIX
+                            Example: schemail labels hide-except Schemail
 
 EXAMPLES:
   # Dry-run on last 10 emails (safe)
@@ -109,6 +114,10 @@ NOTES:
        (loop rest)]
       [(list "test" rest ...)
        (hash-set! options 'command 'test)
+       (loop rest)]
+      [(list "labels" "hide-except" prefix rest ...)
+       (hash-set! options 'command 'labels-hide-except)
+       (hash-set! options 'label-prefix prefix)
        (loop rest)]
       
       ;; Options
@@ -298,6 +307,56 @@ NOTES:
   
   (system "racket src/test-llm.rkt"))
 
+;; Hide labels except those with prefix
+(define (cmd-labels-hide-except options)
+  (displayln "\n╔════════════════════════════════════════════════════════════╗")
+  (displayln "║  Hide Labels (Keep Visible by Prefix)                     ║")
+  (displayln "╚════════════════════════════════════════════════════════════╝\n")
+  
+  (define prefix (hash-ref options 'label-prefix))
+  (displayln (format "Will hide all labels EXCEPT those starting with: ~a" prefix))
+  (displayln "")
+  
+  (get-gmail-token)
+  
+  (define labels-response (gmail-list-labels))
+  (define labels (hash-ref labels-response 'labels '()))
+  
+  ;; Filter to user labels (not system labels)
+  (define user-labels
+    (filter (λ (label)
+              (not (equal? (hash-ref label 'type "user") "system")))
+            labels))
+  
+  (define to-hide
+    (filter (λ (label)
+              (define name (hash-ref label 'name))
+              (not (string-prefix? name prefix)))
+            user-labels))
+  
+  (displayln (format "Found ~a labels to hide:\n" (length to-hide)))
+  
+  (for ([label to-hide])
+    (define name (hash-ref label 'name))
+    (define id (hash-ref label 'id))
+    (displayln (format "  - ~a" name)))
+  
+  (displayln "\nProceed? (yes/no)")
+  (display "> ")
+  (flush-output)
+  (define response (read-line))
+  
+  (if (equal? response "yes")
+      (begin
+        (displayln "\nHiding labels...")
+        (for ([label to-hide])
+          (define name (hash-ref label 'name))
+          (define id (hash-ref label 'id))
+          (displayln (format "  Hiding: ~a" name))
+          (gmail-update-label id #:label-list-visibility "labelHide"))
+        (displayln "\n✓ Done! Labels are now hidden from sidebar."))
+      (displayln "\nCancelled. No changes made.")))
+
 ;; ============================================================================
 ;; Main Entry Point
 ;; ============================================================================
@@ -318,6 +377,7 @@ NOTES:
   (match command
     ['process (cmd-process options)]
     ['daemon (cmd-daemon options)]
+    ['labels-hide-except (cmd-labels-hide-except options)]
     ['test (cmd-test options)]
     [else 
      (displayln (format "Unknown command: ~a" command))
