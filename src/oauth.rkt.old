@@ -1,0 +1,106 @@
+#lang racket
+
+;; Gmail OAuth2 Flow
+;; Reference: https://developers.google.com/identity/protocols/oauth2
+
+(require net/url
+         net/uri-codec
+         json
+         web-server/servlet
+         web-server/servlet-env)
+
+;; OAuth2 endpoints
+(define google-auth-uri "https://accounts.google.com/o/oauth2/v2/auth")
+(define google-token-uri "https://oauth2.googleapis.com/token")
+
+;; Gmail API scopes
+(define gmail-scopes
+  (list "https://www.googleapis.com/auth/gmail.readonly"
+        "https://www.googleapis.com/auth/gmail.modify"
+        "https://www.googleapis.com/auth/gmail.labels"))
+
+;; TODO: Load these from config file
+(define client-id #f)
+(define client-secret #f)
+(define redirect-uri "http://localhost:8080/oauth/callback")
+
+;; Generate OAuth2 authorization URL
+(define (make-auth-url state)
+  (define scope-str (string-join gmail-scopes " "))
+  (define params
+    `((client_id . ,client-id)
+      (redirect_uri . ,redirect-uri)
+      (response_type . "code")
+      (scope . ,scope-str)
+      (access_type . "offline")  ; Get refresh token
+      (state . ,state)
+      (prompt . "consent")))     ; Force consent to get refresh token
+  
+  (format "~a?~a"
+          google-auth-uri
+          (alist->form-urlencoded params)))
+
+;; Exchange authorization code for tokens
+(define (exchange-code-for-tokens code)
+  (define params
+    `((code . ,code)
+      (client_id . ,client-id)
+      (client_secret . ,client-secret)
+      (redirect_uri . ,redirect-uri)
+      (grant_type . "authorization_code")))
+  
+  ;; TODO: Implement HTTP POST to google-token-uri
+  ;; TODO: Parse JSON response
+  ;; Returns: access_token, refresh_token, expires_in
+  (error "Not implemented yet"))
+
+;; Refresh access token using refresh token
+(define (refresh-access-token refresh-token)
+  (define params
+    `((client_id . ,client-id)
+      (client_secret . ,client-secret)
+      (refresh_token . ,refresh-token)
+      (grant_type . "refresh_token")))
+  
+  ;; TODO: Implement HTTP POST to google-token-uri
+  ;; Returns: new access_token, expires_in
+  (error "Not implemented yet"))
+
+;; OAuth callback handler (web server)
+(define (oauth-callback-handler request)
+  (define bindings (request-bindings request))
+  (define code (extract-binding/single 'code bindings))
+  (define state (extract-binding/single 'state bindings))
+  
+  ;; TODO: Verify state matches what we sent
+  ;; TODO: Exchange code for tokens
+  ;; TODO: Store tokens
+  
+  (response/xexpr
+   `(html
+     (head (title "OAuth Success"))
+     (body
+      (h1 "Authorization successful!")
+      (p "You can close this window.")
+      (pre ,(format "Code: ~a" code))))))
+
+;; Start OAuth flow
+(define (start-oauth-flow)
+  (define state (number->string (random 1000000000)))  ; TODO: Better state generation
+  (define auth-url (make-auth-url state))
+  
+  (displayln "Opening browser for OAuth authorization...")
+  (displayln auth-url)
+  (displayln "\nStarting callback server on http://localhost:8080")
+  
+  ;; TODO: Store state for verification
+  ;; TODO: Open browser automatically (system-dependent)
+  ;; TODO: Start web server to handle callback
+  
+  (void))
+
+;; Module exports
+(provide start-oauth-flow
+         make-auth-url
+         exchange-code-for-tokens
+         refresh-access-token)
