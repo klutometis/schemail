@@ -17,16 +17,17 @@ Classify this email with a label and decide if it should be archived.
 Archive means remove from inbox. Most emails should be archived.
 Only keep in inbox if it requires human attention, decision, or response.
 
-EXISTING LABELS (prefer reusing over creating new):
+For context, you've previously created these labels:
 {existing_labels}
 
 LABEL GUIDELINES:
-- PREFER reusing existing labels when they fit
-- Only create new labels when existing ones don't match well
+- Choose the label that best describes this email
+- Reuse existing labels when they're a good fit
+- Create new labels when needed for clarity
 - Keep labels simple and flat: single word or short phrase
 
 Return:
-- label: a short category name (reuse existing if possible)
+- label: a short category name
 - should_archive: true or false
 - rationale: brief explanation
 PROMPT
@@ -45,16 +46,17 @@ Classify each email with a label and decide whether to archive it.
 Inbox Zero means: inbox is for things requiring action, not storage.
 Archive anything that doesn't need a response, decision, or follow-up.
 
-EXISTING LABELS (prefer reusing over creating new):
+For context, you've previously created these labels:
 {existing_labels}
 
 LABEL GUIDELINES:
-- PREFER reusing existing labels when they fit
-- Only create new labels when existing ones don't match well
+- Choose the label that best describes this email
+- Reuse existing labels when they're a good fit
+- Create new labels when needed for clarity
 - Keep labels simple and flat: single word or short phrase
 
 Return:
-- label: a short category name (reuse existing if possible)
+- label: a short category name
 - should_archive: true or false
 - rationale: brief explanation
 
@@ -83,16 +85,17 @@ AUTOMATED EMAILS (receipts, notifications, alerts):
 PERSONAL EMAILS (real people writing to me):
 → Keep in inbox by default (may need response)
 
-EXISTING LABELS (prefer reusing over creating new):
+For context, you've previously created these labels:
 {existing_labels}
 
 LABEL GUIDELINES:
-- PREFER reusing existing labels when they fit
-- Only create new labels when existing ones don't match well
+- Choose the label that best describes this email
+- Reuse existing labels when they're a good fit
+- Create new labels when needed for clarity
 - Keep labels simple and flat: single word or short phrase
 
 Return:
-- label: category name (reuse existing if possible)
+- label: category name
 - should_archive: true or false  
 - rationale: which principle applies
 
