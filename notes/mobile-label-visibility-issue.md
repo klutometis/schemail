@@ -271,3 +271,29 @@ Clean on mobile! ✅
 - `src/label-utils.rkt` - Remove `ensure-schemail-marker`
 - `bin/schemail` - Update default query
 - `notes/label-structure.md` - Original design doc with alternatives
+
+---
+
+## Related Issue: OAuth Token Refresh Failures
+
+**Problem:** OAuth access tokens expire after ~1 hour. Refresh sometimes fails during long batch runs.
+
+**Current behavior:**
+- Token expires mid-run (e.g., email 100/200)
+- Refresh attempt fails silently
+- Process freezes waiting for browser auth
+- User must manually restart
+
+**Improvements made:**
+- Better error message when refresh fails
+- Prompt user to press Enter before opening browser
+- Clearer indication of what went wrong
+
+**Still needed:**
+- Investigate why `refresh-token` fails (API error? Network?)
+- Add retry logic with exponential backoff
+- Consider pre-emptive refresh at 50 minutes
+
+**Workaround for now:**
+- For large batches (200+ emails), run in smaller chunks
+- Or: Be ready to re-auth in browser after ~1 hour
