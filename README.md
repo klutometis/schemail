@@ -1,459 +1,337 @@
----
+# Schemail - Intelligent Email Filtering with Claude AI
 
-**⚡ STATUS UPDATE - Feb 14, 2026**
+**Production-ready email classification system using Claude AI to automatically organize and filter Gmail.**
 
-**Phase 2 & 3 COMPLETE!** LLM integration working! ✅
+![Schemail Screenshot](assets/screenshot.png)
 
-- Built agentic email processing with Claude Sonnet 4.5
-- Tool calling approach - LLM decides actions autonomously
-- Tested on real emails: 5/5 classified correctly
-- Cost: ~$0.007 per email (~$20/month)
-- See: `QUICKSTART.md` for quick start, `notes/agentic.md` for details
+## What It Does
 
-**Next:** Build polling daemon (Phase 4)
+Schemail uses Claude Sonnet 4.5 to intelligently classify your emails into clean, flat labels and automatically archive non-actionable messages following Inbox Zero principles.
 
----
+**Key Features:**
+- 🤖 **AI-powered classification** - Claude decides labels and archive behavior
+- 📊 **Flat label structure** - Simple, clean categories (no nested hierarchy)
+- 🎨 **Automatic color coding** - Rainbow colors for visual organization
+- ⚡ **Label reuse** - Model learns existing labels to prevent proliferation
+- 🎯 **Inbox Zero friendly** - Only human-action emails stay in inbox
+- 💰 **Cost-effective** - ~$0.003 per email (~$9/month for 100 emails/day)
 
-Perfect. Let me break this into two parts: **the system spec** and **the Scheme question**.
+**Tested Performance:**
+- 50 emails → 4 labels (Events, Personal, Travel, Jobs)
+- 62% automatically archived
+- 38% kept in inbox for human action
+- Zero empty parent labels
 
----
+## Quick Start
 
-# ✅ System Spec for the Agent
+### Prerequisites
 
-Yes, you've nailed it. Here's the clean architecture:
+- Racket 9.0+
+- Gmail account with OAuth2 credentials
+- Anthropic API key (Claude)
 
-## **Core Requirements**
+### Installation
 
-1. **Gmail via OAuth**
-   - OAuth2 flow (not IMAP app passwords)
-   - Read/modify/label permissions
-   - Watch API for real-time (or polling for simplicity)
+```bash
+# Clone the repo
+git clone https://github.com/klutometis/schemail.git
+cd schemail
 
-2. **LLM-based filters on incoming email**
-   - New email triggers classification
-   - Run prompt → get category
-   - Apply action (label + archive)
+# Install Racket dependencies
+raco pkg install simple-oauth2 http-easy
 
-3. **LLM-based filters on historical email**
-   - Batch process existing inbox
-   - Same logic as (2), but over N emails
-   - Pagination, rate limiting
-
-4. **Filter = Prompt + Action**
-   - Filter is a tuple: `(name, prompt, actions[])`
-   - Actions: `label(name)`, `archive()`, `skip_inbox()`
-   - Compose multiple actions per filter
-
-5. **Text-based config**
-   - Filters defined in text (JSON, TOML, or S-expressions)
-   - Hot-reload without restarting
-   - Version control friendly
-
----
-
-## **Minimal Data Model**
-
-```typescript
-type Filter = {
-  name: string;           // "Recruiters"
-  prompt: string;         // "Classify as Recruiter if..."
-  actions: Action[];      // [label("Recruiters"), archive()]
-  priority: number;       // Run order (1 = first)
-};
-
-type Action = 
-  | { type: "label", name: string }
-  | { type: "archive" }
-  | { type: "skip_inbox" }
-  | { type: "star" }
-  | { type: "mark_read" };
+# Set up OAuth and API keys
+# Follow QUICKSTART.md for detailed setup
 ```
 
----
+### Basic Usage
 
-## **System Flow**
+**Easy way (using wrapper script):**
 
-```
-┌─────────────┐
-│ Gmail OAuth │
-└──────┬──────┘
-       │
-       v
-┌─────────────────┐
-│ Fetch Emails    │  (unread, or all for backlog)
-└────────┬────────┘
-         │
-         v
-┌─────────────────┐
-│ For each email  │
-│   Run filters   │  (priority order, stop on match)
-│   Execute action│
-└────────┬────────┘
-         │
-         v
-┌─────────────────┐
-│ Log result      │  (for debugging, analytics)
-└─────────────────┘
+```bash
+# Test on 10 emails (dry-run)
+bin/classify
+
+# Test on 50 emails (dry-run)
+bin/classify 50
+
+# Process 50 emails (live)
+bin/classify 50 --live
+
+# Process 200 emails (live, with auto-logging)
+bin/classify 200 --live
 ```
 
----
+**Manual way (full control):**
 
-## **Config Example (JSON)**
+```bash
+# Process last 10 emails (dry-run)
+bin/schemail process --last 10 --classifier experiment-3
 
-```json
-{
-  "filters": [
-    {
-      "name": "Recruiters",
-      "priority": 1,
-      "prompt": "Classify as Recruiter if: job opportunity, hiring, role, etc.",
-      "actions": [
-        { "type": "label", "name": "Recruiters" },
-        { "type": "archive" }
-      ]
-    },
-    {
-      "name": "Notifications",
-      "priority": 2,
-      "prompt": "Classify as Notification if: automated, system message, receipt, etc.",
-      "actions": [
-        { "type": "label", "name": "Notifications" },
-        { "type": "archive" }
-      ]
-    }
-  ],
-  "llm": {
-    "provider": "openai",
-    "model": "gpt-4o-mini"
-  }
-}
+# Process last 50 emails (live)
+bin/schemail process --last 50 --classifier experiment-3 --execute
+
+# Process last 200 emails with logging
+bin/schemail process --last 200 --classifier experiment-3 --execute 2>&1 | tee output.log
+
+# Apply colors to existing labels
+bin/schemail labels assign-colors --color-scheme rainbow
+
+# Clean up all experiment labels
+bin/schemail labels cleanup
 ```
 
----
+### Configuration
 
-## **Or S-expressions (if Scheme)**
+Edit `config/schemail.rkt`:
 
-```scheme
-(define filters
-  '((filter 
-      (name "Recruiters")
-      (priority 1)
-      (prompt "Classify as Recruiter if...")
-      (actions 
-        (label "Recruiters")
-        (archive)))
-    (filter
-      (name "Notifications")
-      (priority 2)
-      (prompt "Classify as Notification if...")
-      (actions
-        (label "Notifications")
-        (archive)))))
+```racket
+;; Color scheme: rainbow (unlimited colors)
+(define color-scheme 'rainbow)
+
+;; Labels to exclude from coloring
+(define exclude-from-coloring '("Groups" "Saved"))
 ```
 
----
+## How It Works
 
-## **The Beauty of Scheme Here**
+### Classifier Experiments
 
-You'd have **code-as-data** for filters:
+Schemail includes three experimental prompts tested at scale:
 
-```scheme
-;; Define a filter
-(define-filter "Recruiters"
-  #:prompt "Classify as Recruiter if..."
-  #:actions (list (label "Recruiters") (archive)))
+1. **Experiment 1** - Blank slate with minimal guidance
+2. **Experiment 2** - High-level Inbox Zero principles
+3. **Experiment 3** - Explicit Inbox Zero framework ⭐ **Recommended**
 
-;; Actions are just functions
-(define (label name)
-  (lambda (email) 
-    (gmail-apply-label email name)))
+**Experiment 3 (default)** uses explicit Delete/Delegate/Respond/Defer/Do principles:
+- Automated emails (receipts, notifications) → Archive immediately
+- Personal emails (real people) → Keep in inbox for response
+- Results: 50 emails → 4 flat labels, excellent discrimination
 
-(define (archive)
-  (lambda (email)
-    (gmail-archive email)))
+### Label Structure
 
-;; Composable
-(define (compose-actions . actions)
-  (lambda (email)
-    (for-each (lambda (action) (action email)) actions)))
+**Flat labels (no hierarchy):**
+- Simple, single-word or short-phrase labels
+- Model chooses spontaneously: `Events`, `Personal`, `Travel`, `Jobs`
+- No empty parent labels wasting space
+- All labels get colors
+
+**Why flat?**
+- At small scale (4-10 labels), nesting adds no value
+- Simpler UI, easier to understand
+- Zero wasted empty parents
+- Room to grow as needed
+
+### Performance
+
+**Scaling characteristics:**
+- 10 emails → 4 labels (40% ratio)
+- 50 emails → 4 labels (8% ratio) ⭐ Better consolidation at scale!
+- Label reuse increases with volume
+- Model recognizes patterns (e.g., all Anthropic receipts → Receipt)
+
+**Cost estimation:**
+- Per email: ~750 tokens (~$0.003)
+- 100 emails/day: ~$9/month
+- 72,762 inbox emails: ~$218 total (~50-60 hours)
+
+## Label System
+
+### Flat Label Examples
+
+Model spontaneously creates semantic categories:
+- **Events** - Invitations, meetings, RSVPs
+- **Personal** - Human conversations, discussions
+- **Travel** - Airlines, hotels, loyalty programs
+- **Jobs** - Recruiting, opportunities
+- **Receipt** - Transactions, confirmations
+- **Newsletter** - Marketing, updates
+
+### Archive Behavior
+
+**Kept in inbox (38%):**
+- Real event invitations requiring RSVP
+- Personal messages from humans
+- Job opportunities requiring decision
+- Anything needing human action
+
+**Automatically archived (62%):**
+- Luma event notifications
+- Transactional receipts
+- Welcome emails
+- One-time passcodes
+- Marketing newsletters
+
+## Architecture
+
+### Components
+
+- **`src/llm-classifier.rkt`** - Structured classifier using Claude API
+- **`src/label-utils.rkt`** - Label creation, normalization, application
+- **`src/colors.rkt`** - 15 color schemes (ColorBrewer + Paul Tol + rainbow)
+- **`src/label-colors.rkt`** - Gmail color palette mapping
+- **`src/gmail.rkt`** - Gmail API wrapper
+- **`src/oauth.rkt`** - OAuth2 with automatic token refresh
+- **`config/classifier-prompts.rkt`** - Three experiment prompts
+- **`config/schemail.rkt`** - User configuration
+- **`bin/schemail`** - CLI interface
+
+### Data Flow
+
+```
+Gmail API
+  ↓ (fetch unprocessed emails)
+Fetch labels once (hash table)
+  ↓ (pass through pipeline)
+For each email:
+  ↓ (provide existing labels to model)
+Claude Classifier
+  ↓ (returns: label, should_archive, rationale)
+Label Utilities
+  ↓ (normalize, create if needed, apply)
+Update labels hash
+  ↓ (reuse for next email)
+Gmail API (apply labels + archive)
+  ↓ (at end of batch)
+Color Assignment (rainbow scheme)
 ```
 
-This is **genuinely elegant** for your use case.
+**Key optimization:** Labels fetched once, passed through pipeline, prevents O(n²) API calls.
 
----
+## Commands
 
-# 🎨 The Scheme Renaissance Question
+### Process Emails
 
-You're right that Lisp/Scheme never came back with the LLM wave — which is ironic, because **LLMs are the symbolic AI interface** that Lisp was designed for.
+```bash
+# Basic processing
+bin/schemail process --last N --classifier experiment-3 --execute
 
-Here's the modern Scheme landscape:
+# With custom query
+bin/schemail process --query "label:INBOX -label:Schemail" --last 50 --classifier experiment-3 --execute
 
----
+# Include already-processed emails
+bin/schemail process --last 50 --classifier experiment-3 --include-processed --execute
 
-## **Racket** ✅ (The Winner)
+# Process unread only
+bin/schemail process --unread --classifier experiment-3 --execute
 
-**Status:** Alive, thriving, best choice for 2026.
-
-**Why:**
-- **Modern tooling**: DrRacket IDE, package manager (`raco pkg`)
-- **Batteries included**: Web server, JSON, HTTP client, GUI (yes, really)
-- **Strong community**: Active Discord, regular updates
-- **Types (optional)**: Typed Racket if you want it
-- **Docs**: Best in class for a Scheme
-- **FFI**: Can call C libraries easily
-- **Compiled**: Native executables via `raco exe`
-
-**Gmail + LLM in Racket:**
-- OAuth: `net/http-client`, `web-server/servlet`
-- JSON: `json` (built-in)
-- HTTP: `net/url`, `http/request`
-- LLM: Just POST to OpenAI API
-
-**Cons:**
-- Slightly heavier than Chicken (but not much)
-- Not quite "one binary" (but close with `raco distribute`)
-
-**Verdict:** This is what you should use if going Scheme.
-
----
-
-## **Chicken Scheme** ✅ (Still Great)
-
-**Status:** Still maintained, still compiles to C.
-
-**Why:**
-- **Compiles to C**: True native binaries
-- **Eggs (packages)**: Mature ecosystem
-- **Small runtime**: Minimal footprint
-- **R5RS + extensions**: Familiar if you used it before
-
-**Gmail + LLM:**
-- OAuth: `http-client`, `openssl`
-- JSON: `medea` egg
-- Gmail: You'd write the OAuth dance yourself
-
-**Cons:**
-- Smaller community than Racket
-- Less batteries-included
-- Docs not as polished
-
-**Verdict:** Still solid, but Racket has surpassed it in ecosystem/tooling.
-
----
-
-## **Chez Scheme** ✅ (Fast, Clean)
-
-**Status:** Now open source (Cisco donated it), very fast.
-
-**Why:**
-- **Blazing fast**: Best-in-class Scheme compiler
-- **R6RS compliant**: Portable, standard
-- **Clean implementation**: Beautiful codebase
-- **Used in production**: Cisco used it internally for years
-
-**Cons:**
-- **Smaller ecosystem**: Fewer libraries than Racket
-- **Less hand-holding**: More DIY
-
-**Verdict:** If you want raw speed and elegance, but you'll write more yourself.
-
----
-
-## **Guile** (GNU's Scheme)
-
-**Status:** Still around, but stagnant energy.
-
-**Why:**
-- Extension language for GNU tools
-- C FFI
-
-**Cons:**
-- Feels like legacy
-- Community less active
-- Tooling dated
-
-**Verdict:** Skip it.
-
----
-
-## **Gerbil Scheme** 🌟 (Dark Horse)
-
-**Status:** Modern, underrated, designed for real-world apps.
-
-**Why:**
-- **Built on Gambit**: Fast, compiles to C
-- **Actor model**: Built-in concurrency (great for email daemon)
-- **Modules**: Real module system
-- **Crypto/networking**: Has libraries for HTTP, JSON, SSL
-- **Used in crypto**: Some blockchain projects use it
-
-**Cons:**
-- Smaller community
-- Less documentation than Racket
-
-**Verdict:** Interesting if you want concurrency built-in.
-
----
-
-## **Janet** (Not Scheme, but Lisp-ish)
-
-**Status:** Modern, tiny, no GC pauses.
-
-**Why:**
-- **Tiny runtime**: 300KB
-- **Single binary**: Everything compiles to one file
-- **Fiber-based concurrency**: Lightweight threads
-- **Modern**: Designed 2018+
-
-**Cons:**
-- Not Scheme (different syntax/semantics)
-- Smaller ecosystem
-
-**Verdict:** Worth a look if you're okay leaving Scheme proper.
-
----
-
-# 🎯 My Recommendation
-
-## **For Your Project:**
-
-### **Option 1: Racket** (Best Scheme for 2026)
-
-**Why:**
-- You get the Lisp elegance you want
-- Config = code (S-expressions)
-- Web server built-in (for OAuth callback)
-- JSON/HTTP out of the box
-- Compiled binaries
-- Great docs
-
-**Setup time:** ~1 day to learn modern Racket idioms
-
-**Code beauty:** 10/10
-
-**"Will I regret this?":** No.
-
----
-
-### **Option 2: TypeScript/Node** (Pragmatic)
-
-**Why:**
-- You already know it
-- Gmail API has official Node SDK
-- JSON-native
-- Easy OAuth libraries
-- Could add web UI later
-- Bun for fast startup (or Deno)
-
-**Setup time:** ~1 hour
-
-**Code beauty:** 7/10 (but pragmatic)
-
-**"Will I regret this?":** Only if you want to flex with Scheme.
-
----
-
-### **Option 3: Rust** (Masochist Mode)
-
-**Why:**
-- You've done it before
-- Compiled, fast, type-safe
-- TOML for config (close to S-expressions in spirit)
-- `serde` for serialization
-- `reqwest` for HTTP
-- Could distribute single binary
-
-**Setup time:** ~2-3 days (fighting the borrow checker)
-
-**Code beauty:** 8/10 (once it compiles)
-
-**"Will I regret this?":** Only when you're debugging lifetimes at 2am.
-
----
-
-# 🎨 The Philosophical Choice
-
-You said:
-> "The config-representation would be in the same language as the implementation"
-
-This is **the core Lisp insight**, and it's still true.
-
-**In Racket:**
-```scheme
-;; Your config IS code
-(define-filter "Important"
-  #:when (lambda (email) 
-           (member (sender email) important-people))
-  #:actions (list (label "Important") (star)))
-
-;; No parsing. No JSON schema. Just eval.
+# Process by date range
+bin/schemail process --since "2026-02-01" --until "2026-02-15" --classifier experiment-3 --execute
 ```
 
-**In TypeScript:**
-```typescript
-// Your config is... JSON
-// Which you parse, validate, and interpret
-const filter = JSON.parse(config);
-if (filter.actions) { ... } // Hope the schema is right
+### Label Management
+
+```bash
+# Apply colors to all labels
+bin/schemail labels assign-colors
+
+# Apply specific color scheme
+bin/schemail labels assign-colors --color-scheme rainbow
+
+# Clean up experiment labels
+bin/schemail labels cleanup
 ```
 
-**The Lisp way is more beautiful.**
+### Help
 
-But the TypeScript way is more:
-- Debuggable (VSCode autocomplete)
-- Portable (everyone knows JSON)
-- Collaborative (non-Schemers can contribute)
-
----
-
-# 🚀 Final Answer
-
-## **Go with Racket.**
-
-**Why:**
-- It's the best modern Scheme
-- Config-as-code is elegant for this problem
-- Gmail API is just HTTP (no SDK needed)
-- LLM API is just POST requests
-- You'll enjoy writing it
-- It's a statement: "Old AI is back, and so is Lisp"
-
-**Starter Skeleton:**
-
-```scheme
-#lang racket
-
-(require net/http-client
-         json
-         web-server/servlet)
-
-;; Filter DSL
-(define-syntax-rule (define-filter name prompt . actions)
-  (list 'filter name prompt actions))
-
-;; Gmail OAuth
-(define (gmail-oauth) ...)
-
-;; Classify email with LLM
-(define (classify-email email prompt)
-  (let ([response (openai-call prompt email)])
-    (parse-json response)))
-
-;; Apply actions
-(define (apply-actions email actions)
-  (for-each (lambda (action) (action email)) actions))
-
-;; Main loop
-(define (process-inbox)
-  (let ([emails (gmail-fetch-unread)])
-    (for-each (lambda (email)
-                (let ([category (classify-email email filter-prompt)])
-                  (apply-actions email (filter-actions category))))
-              emails)))
+```bash
+bin/schemail help
 ```
 
----
+## Development
 
-**Ship it. Make Scheme great again. Peter Norvig would approve.**
+### Project Structure
 
-Want me to draft the actual Racket architecture in OpenCode, or do you have it from here?
+```
+schemail/
+├── bin/
+│   └── schemail              # CLI entry point
+├── src/
+│   ├── llm-classifier.rkt    # Claude API integration
+│   ├── label-utils.rkt       # Label operations
+│   ├── gmail.rkt             # Gmail API wrapper
+│   ├── oauth.rkt             # OAuth2 flow
+│   ├── colors.rkt            # Color schemes
+│   └── label-colors.rkt      # Gmail color mapping
+├── config/
+│   ├── schemail.rkt          # User config
+│   ├── classifier-prompts.rkt # Experiment prompts
+│   └── filters.rkt           # Legacy filter DSL
+├── notes/                    # Design documents
+│   ├── classifier-experiments.md
+│   ├── flat-label-experiment-results.md
+│   ├── label-structure-evolution.md
+│   └── ...
+├── assets/
+│   └── screenshot.png
+├── README.md
+├── QUICKSTART.md
+└── TODO.md
+```
+
+### Testing
+
+```bash
+# Test on 10 emails (dry-run)
+bin/schemail process --last 10 --classifier experiment-3
+
+# Test OAuth refresh
+racket src/test-refresh.rkt
+```
+
+## Documentation
+
+- **[QUICKSTART.md](QUICKSTART.md)** - Detailed setup guide
+- **[TODO.md](TODO.md)** - Development roadmap
+- **[notes/](notes/)** - Design decisions and experiments
+
+### Key Documents
+
+- `notes/classifier-experiments.md` - All experiment results and analysis
+- `notes/flat-label-experiment-results.md` - Flat vs nested label comparison
+- `notes/label-structure-evolution.md` - Label design evolution
+- `notes/label-colors.md` - Color system design
+- `notes/oauth-improvements.md` - OAuth token recovery
+
+## Cost Analysis
+
+**Per-email cost (Claude Sonnet 4.5):**
+- Input: ~700 tokens × $3/M = $0.0021
+- Output: ~50 tokens × $15/M = $0.00075
+- **Total: ~$0.003 per email**
+
+**Scaling scenarios:**
+- 100 emails/day × 30 days = $9/month
+- 72,762 inbox emails = $218 one-time (50-60 hours)
+- 112,786 total emails = $338 one-time (78-94 hours)
+
+## Roadmap
+
+- [x] OAuth2 with automatic token refresh
+- [x] Gmail API wrapper (full CRUD)
+- [x] Structured classifier with Claude Sonnet 4.5
+- [x] Three experiment prompts with testing
+- [x] Flat label structure with color coding
+- [x] Label reuse to prevent proliferation
+- [ ] Daemon mode (polling for new emails)
+- [ ] Calendar integration (action-based event extraction)
+- [ ] Gmail Push API (Pub/Sub for real-time)
+- [ ] Web UI for viewing stats
+
+## Contributing
+
+This is a personal project, but suggestions and discussions welcome! Open an issue or PR.
+
+## License
+
+MIT License - See LICENSE file for details
+
+## Related Projects
+
+- [Inbox Zero](https://www.getinboxzero.com/) - Inspiration for label structure
+- [simple-oauth2](https://github.com/johnstonskj/simple-oauth2) - Racket OAuth library
+- [http-easy](https://github.com/Bogdanp/http-easy) - Racket HTTP client
+
+## Credits
+
+Built with [Racket](https://racket-lang.org/) and [Claude](https://www.anthropic.com/claude) by [Peter Danenberg](https://github.com/klutometis).

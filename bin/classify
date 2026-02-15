@@ -1,0 +1,71 @@
+#!/bin/bash
+# Schemail Classifier Wrapper
+# Simplifies running the classifier with sane defaults
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCHEMAIL="${SCRIPT_DIR}/bin/schemail"
+
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Show usage
+usage() {
+    cat <<EOF
+Usage: classify [N] [--live]
+
+Classify N emails from your inbox using Experiment 3 (flat labels).
+
+Arguments:
+  N          Number of emails to process (default: 10)
+  --live     Actually apply labels and archive (default: dry-run)
+
+Examples:
+  classify             # Dry-run on last 10 emails
+  classify 50          # Dry-run on last 50 emails
+  classify 50 --live   # Process 50 emails (apply labels)
+  classify 200 --live  # Process 200 emails (apply labels)
+
+Default mode is DRY-RUN (safe). Use --live to actually modify emails.
+
+Classifier: experiment-3 (Inbox Zero framework with flat labels)
+Color scheme: rainbow (applied automatically at end)
+Query: in:inbox -label:Schemail (only unprocessed emails)
+
+EOF
+    exit 0
+}
+
+# Parse arguments
+N=10
+LIVE=""
+
+if [[ "${1:-}" == "-h" ]] || [[ "${1:-}" == "--help" ]]; then
+    usage
+fi
+
+if [[ -n "${1:-}" ]]; then
+    if [[ "$1" =~ ^[0-9]+$ ]]; then
+        N="$1"
+        shift
+    fi
+fi
+
+if [[ "${1:-}" == "--live" ]] || [[ "${1:-}" == "-l" ]]; then
+    LIVE="--execute"
+    echo -e "${YELLOW}⚠ LIVE MODE: Will modify emails!${NC}"
+    echo ""
+else
+    echo -e "${GREEN}🔒 DRY-RUN MODE: Safe, no changes will be made${NC}"
+    echo ""
+fi
+
+# Run classifier
+exec "$SCHEMAIL" process \
+    --last "$N" \
+    --classifier experiment-3 \
+    $LIVE \
+    2>&1 | tee "/tmp/schemail-classify-$(date +%Y%m%d-%H%M%S).log"

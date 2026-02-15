@@ -758,7 +758,7 @@ All 5 emails classified correctly as **notifications**:
 
 #### Email 3: GoDaddy Order Confirmation
 - **From:** `donotreply@godaddy.com`
-- **Subject:** "Peter Danenberg, thank you for your order."
+- **Subject:** "Thank you for your order."
 - **Claude's Decision:**
   - ✅ apply_label("notification")
   - ✅ archive_email

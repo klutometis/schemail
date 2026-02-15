@@ -14,7 +14,9 @@
 ;; ============================================================================
 
 ;; Apply colors to all user labels
-(define (apply-label-colors! #:scheme [scheme (get-config 'color-scheme)])
+;; Optionally accepts labels-hash from processing to avoid re-fetching
+(define (apply-label-colors! #:scheme [scheme (get-config 'color-scheme)]
+                             #:labels-hash [labels-hash #f])
   (unless scheme
     (displayln "No color scheme configured. Skipping label coloring.")
     (void))
@@ -22,7 +24,7 @@
   (when scheme
     (displayln (format "\n=== Applying '~a' color scheme ===" scheme))
     
-    ;; Get all labels
+    ;; Get all labels (need IDs for coloring)
     (define all-labels (gmail-list-labels))
     (define label-list (hash-ref all-labels 'labels '()))
     
@@ -41,19 +43,25 @@
       (void))
     
     (unless (empty? user-labels)
-      ;; Fetch full details for each label to get message counts
-      (displayln "Fetching label details...")
-      (define labels-with-counts
-        (for/list ([label user-labels])
-          (define label-id (hash-ref label 'id))
-          (gmail-get-label label-id)))
-      
-      ;; Filter to labels with messages (messagesTotal > 0)
+      ;; Use provided labels-hash or fetch counts
       (define labels-with-messages
-        (filter (λ (label)
-                  (define total (hash-ref label 'messagesTotal 0))
-                  (> total 0))
-                labels-with-counts))
+        (if labels-hash
+            ;; Use provided hash - filter user-labels to only those in hash
+            (filter (λ (label)
+                      (define name (hash-ref label 'name))
+                      (hash-has-key? labels-hash name))
+                    user-labels)
+            ;; Fetch counts from API
+            (let ([labels-with-counts (begin
+                                        (displayln "Fetching label details...")
+                                        (for/list ([label user-labels])
+                                          (define label-id (hash-ref label 'id))
+                                          (gmail-get-label label-id)))])
+              ;; Filter to labels with messages
+              (filter (λ (label)
+                        (define total (hash-ref label 'messagesTotal 0))
+                        (> total 0))
+                      labels-with-counts))))
       
       (define initial-count (length user-labels))
       (define filtered-count (length labels-with-messages))
@@ -61,12 +69,6 @@
       
       (displayln (format "Found ~a user label(s), ~a with messages (~a empty, skipped)"
                         initial-count filtered-count skipped-count))
-      
-      (when (> skipped-count 0)
-        (displayln "\nSkipped empty labels:")
-        (for ([label labels-with-counts]
-              #:when (= (hash-ref label 'messagesTotal 0) 0))
-          (displayln (format "  - ~a (0 messages)" (hash-ref label 'name)))))
       
       (when (empty? labels-with-messages)
         (displayln "\nNo labels with messages to color.")
@@ -81,7 +83,11 @@
         (for ([label labels-with-messages] [color colors] [i (in-naturals 1)])
           (define label-id (hash-ref label 'id))
           (define label-name (hash-ref label 'name))
-          (define message-count (hash-ref label 'messagesTotal))
+          ;; Get count from hash if provided, otherwise from label
+          (define message-count
+            (if labels-hash
+                (hash-ref labels-hash label-name 0)
+                (hash-ref label 'messagesTotal 0)))
           (define text-color (text-color-for-background color))
           (displayln (format "  [~a/~a] ~a (~a msgs) → bg:~a text:~a" 
                             i filtered-count label-name message-count color text-color))

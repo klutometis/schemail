@@ -8,6 +8,7 @@
          "../src/filters.rkt"
          "../src/llm-classifier.rkt"
          "../src/label-colors.rkt"
+         "../src/label-utils.rkt"
          "../config/filters.rkt"
          "../config/preferences.rkt"
          "../config/classifier-prompts.rkt"
@@ -312,6 +313,14 @@ NOTES:
             (displayln "Using hybrid strategy instead.")
             filters-hybrid])))
   
+  ;; Fetch existing labels once at the beginning (for classifier mode)
+  (define labels-hash
+    (if classifier-prompt
+        (let ([exclude-list (get-config 'exclude-from-coloring)])
+          (displayln "Fetching existing labels...")
+          (get-labels-with-counts #:exclude exclude-list))
+        #f))
+  
   ;; Process each message
   (for ([id message-ids]
         [i (in-naturals 1)])
@@ -335,8 +344,8 @@ NOTES:
     
     (when should-process?
       (if classifier-prompt
-          ;; Use structured classifier
-          (classify-email msg classifier-prompt #:dry-run? dry-run?)
+          ;; Use structured classifier with labels hash
+          (classify-email msg classifier-prompt labels-hash #:dry-run? dry-run?)
           ;; Use filter strategy
           (process-message-with-filters msg filters #:dry-run? dry-run?))))
   
@@ -347,7 +356,10 @@ NOTES:
     (define color-scheme-override (hash-ref options 'color-scheme #f))
     (define color-scheme (or color-scheme-override (get-config 'color-scheme)))
     (when color-scheme
-      (apply-label-colors! #:scheme color-scheme))))
+      ;; Pass labels-hash if we have it (from classifier mode), otherwise let colors fetch
+      (if labels-hash
+          (apply-label-colors! #:scheme color-scheme #:labels-hash labels-hash)
+          (apply-label-colors! #:scheme color-scheme)))))
 
 ;; Run as daemon
 (define (cmd-daemon options)

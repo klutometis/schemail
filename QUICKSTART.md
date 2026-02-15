@@ -1,265 +1,451 @@
-# Quickstart Guide
+# Schemail Quickstart Guide
 
 ## What Is This?
 
-An intelligent email filtering system built in Racket that uses **Claude AI** to automatically classify and organize your Gmail inbox. Instead of writing dozens of specific rules, you give Claude high-level instructions and it decides what to do with each email.
+An intelligent email filtering system built in Racket that uses **Claude Sonnet 4.5** to automatically classify and organize your Gmail inbox using Inbox Zero principles.
 
-## What We've Built So Far
+## Current Status
 
-✅ **Gmail OAuth Integration** - Secure access to your Gmail  
-✅ **Filter DSL** - S-expression based filter language  
-✅ **LLM Integration** - Claude Sonnet 4.5 with tool calling  
-✅ **Agentic Processing** - AI decides actions autonomously  
-✅ **Dry-Run Mode** - Test safely before making changes  
-✅ **Test Suite** - Comprehensive testing tools  
+**✅ Production Ready!**
 
-## Quick Test
+- Structured classifier with three tested experiments
+- Flat label structure (no nested hierarchy)
+- Label reuse to prevent proliferation
+- Automatic rainbow color coding
+- Tested at scale: 50 emails → 4 labels, excellent discrimination
 
-### Using the CLI (Recommended)
+## Quick Start
 
-```bash
-# Process last 10 emails (dry-run, safe)
-schemail process --last 10
+### 1. Setup (First Time Only)
 
-# Process with hybrid strategy (fast rules + LLM)
-schemail process --last 20 --filter hybrid
-
-# Actually execute (make real changes!)
-schemail process --last 5 --execute
-```
-
-### Using the Test Suite
+#### Install Racket Dependencies
 
 ```bash
-cd /home/danenberg/prg/email
-racket src/test-llm.rkt
-# Choose option 1: "Dry-run on recent emails"
+raco pkg install simple-oauth2 http-easy
 ```
 
-The system will:
-1. Fetch recent emails
-2. Send each to Claude with your preferences
-3. Show what actions Claude would take (but not execute them)
+#### Get Gmail OAuth Credentials
 
-## How It Works
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project (or use existing)
+3. Enable Gmail API
+4. Create OAuth 2.0 credentials (Desktop app)
+5. Download `credentials.json` to `config/` directory
 
-### Label Structure
+#### Get Anthropic API Key
 
-**Flat labels + hidden marker:**
-- Content labels: `Receipt`, `Newsletter`, `Shipping` (visible, colorful)
-- Hidden marker: `Schemail` (marks as processed, hidden from sidebar)
-- Both applied together automatically
+1. Go to [Anthropic Console](https://console.anthropic.com/)
+2. Create API key
+3. Export: `export ANTHROPIC_API_KEY=your_key_here`
 
-**Example classifications:**
-- Receipt from Anthropic → `Receipt` + `Schemail` (archived)
-- Newsletter from NYTimes → `Newsletter` + `Schemail` (archived)
-- Shipping from Amazon → `Shipping` + `Schemail` (archived)
-- Email from human → `Action` + `Schemail` (stays in inbox)
+### 2. Test on 10 Emails (Safe Dry-Run)
 
-### High-Level Instructions
-
-Instead of writing rules like:
-```scheme
-(filter (from "noreply@linkedin.com") (label "notification") (archive))
-(filter (from "notifications@github.com") (label "notification") (archive))
-;; ... 50 more rules
+**Easy way:**
+```bash
+bin/classify
 ```
 
-You write:
-```scheme
-(filter (always)
-        (llm-agent "You're my email assistant. Handle emails intelligently..."))
+**Manual way:**
+```bash
+bin/schemail process --last 10 --classifier experiment-3
 ```
 
-Claude figures out the rest!
+This will:
+- Fetch last 10 unprocessed emails from inbox
+- Show what Claude would do (label + archive decisions)
+- NOT make any changes (dry-run mode)
 
-## Test Results
+### 3. Process 50 Emails (Live)
 
-**First test: 5/5 emails classified correctly** ✅
-
-- Amazon shipping notification → notification (archived, read)
-- Anthropic receipts (3x) → notification (archived, read)
-- GoDaddy order confirmation → notification (archived, read)
-
-**Cost:** ~$0.007 per email (~$20/month for 100 emails/day)
-
-## Project Structure
-
-```
-/home/danenberg/prg/email/
-├── src/
-│   ├── oauth.rkt          # Gmail OAuth flow
-│   ├── gmail.rkt          # Gmail API wrapper
-│   ├── filters.rkt        # Filter DSL
-│   ├── llm.rkt            # Claude integration
-│   └── test-llm.rkt       # Test suite
-├── config/
-│   ├── credentials.json   # OAuth credentials
-│   ├── preferences.rkt    # Email handling instructions
-│   └── filters.rkt        # Filter configurations
-├── notes/
-│   └── agentic.md         # Implementation details & test results
-├── TODO.md                # Development roadmap
-├── README.md              # Original design doc
-└── QUICKSTART.md          # This file
+**Easy way:**
+```bash
+bin/classify 50 --live
 ```
 
-## Configuration Files
-
-### `config/preferences.rkt` - Your Email Assistant's Instructions
-
-```racket
-"You are my personal email assistant. Process each email according to these rules:
-
-1. 'action' - Real humans writing specifically to me. Leave in inbox.
-2. 'notification' - Automated messages. Archive and mark read.
-3. 'recruiter' - Job opportunities. Archive.
-
-If unsure, leave in inbox. Better safe than sorry."
+**Manual way:**
+```bash
+bin/schemail process --last 50 --classifier experiment-3 --execute
 ```
 
-### `config/filters.rkt` - Filter Strategies
+This will:
+- Actually apply labels
+- Archive non-actionable emails
+- Apply rainbow colors
+- Skip already-processed emails (those with `Schemail` label)
+- Auto-log to `/tmp/schemail-classify-*.log`
 
-Three strategies available:
+### 4. View Results in Gmail
 
-**1. Pure Agentic** (LLM does everything)
-```scheme
-(filter (always)
-        (llm-agent email-assistant-prompt))
-```
+Your emails are now labeled and colored! Check your Gmail to see:
+- Flat labels: `Events`, `Personal`, `Travel`, `Jobs`, etc.
+- Rainbow colors applied automatically
+- Only action-required emails in inbox
+- Everything else archived with labels
 
-**2. Hybrid** (Fast rules + LLM fallback) ← **Recommended**
-```scheme
-;; Fast pattern matching for obvious cases
-(filter (from "noreply@github.com") (label "github") (archive) (skip))
+## Understanding the Classifier
 
-;; LLM handles the rest
-(filter (always) (llm-agent email-assistant-prompt))
-```
+### Three Experiments
 
-**3. Selective LLM** (Only for ambiguous cases)
-```scheme
-(filter (from "noreply@") (label "notification") (archive) (skip))
-(filter (not (has-label "notification"))
-        (llm-agent email-assistant-prompt))
-```
+Schemail includes three classifier experiments:
 
-## CLI Usage
+1. **Experiment 1** - Blank slate with minimal guidance
+2. **Experiment 2** - High-level Inbox Zero principles
+3. **Experiment 3** - Explicit Inbox Zero framework ⭐ **Recommended**
+
+**Use Experiment 3** - it's tested, performs best, and uses explicit Delete/Delegate/Respond/Defer/Do principles.
+
+### What Experiment 3 Does
+
+**Automated emails → Archive:**
+- Receipts, confirmations, notifications
+- Marketing newsletters
+- One-time passcodes
+- Event registration notifications
+
+**Personal emails → Keep in inbox:**
+- Real people writing to you
+- Event invitations requiring RSVP
+- Job opportunities requiring decision
+- Anything needing human action
+
+**Result:** Clean inbox with only actionable emails!
+
+### Flat Label Structure
+
+Model spontaneously creates simple labels:
+- `Events` - Invitations, meetings, conferences
+- `Personal` - Human conversations, discussions
+- `Travel` - Airlines, loyalty programs
+- `Jobs` - Recruiting, opportunities
+- `Receipt` - Transactions (when present in test set)
+- `Newsletter` - Marketing (when present in test set)
+
+**Why flat?**
+- No nested hierarchy (no `Event/Invitation`)
+- No empty parent labels wasting space
+- Simpler UI, easier to understand
+- Model consolidates intelligently
+
+## Common Commands
 
 ### Process Emails
 
-```bash
-# Dry-run on last 10 emails (default, safe)
-schemail process --last 10
-
-# Process last 50 with hybrid strategy
-schemail process --last 50 --filter hybrid
-
-# Actually execute actions (LIVE MODE)
-schemail process --last 10 --execute
-
-# Process only unread emails
-schemail process --unread --execute
-
-# Process emails from a date range
-schemail process --since "2026-02-01" --until "2026-02-14"
-
-# Interactive mode (review each email)
-schemail process --last 20 --interactive
-
-# Custom Gmail query
-schemail process --query "from:linkedin.com" --execute
-```
-
-### Run as Daemon
+**Using wrapper script (recommended):**
 
 ```bash
-# Check for new emails every 5 minutes
-schemail daemon --interval 5
+# Test on 10 emails (dry-run)
+bin/classify
 
-# Daemon with custom query
-schemail daemon --interval 3 --query "is:unread -from:spam"
+# Test on 50 emails (dry-run)
+bin/classify 50
+
+# Process 50 emails (live)
+bin/classify 50 --live
+
+# Process 200 emails (live, auto-logged)
+bin/classify 200 --live
 ```
 
-### Testing Modes (Alternative)
+**Using CLI directly (full control):**
 
 ```bash
-# Run full test suite
-schemail test
+# Test on 10 emails (dry-run)
+bin/schemail process --last 10 --classifier experiment-3
 
-# Or use the interactive test tool:
-racket src/test-llm.rkt
+# Process 50 emails (live)
+bin/schemail process --last 50 --classifier experiment-3 --execute
+
+# Process 200 emails with logging
+bin/schemail process --last 200 --classifier experiment-3 --execute 2>&1 | tee output.log
+
+# Process only unread
+bin/schemail process --unread --classifier experiment-3 --execute
+
+# Process date range
+bin/schemail process --since "2026-02-01" --classifier experiment-3 --execute
+
+# Process with custom query
+bin/schemail process --query "label:INBOX" --last 100 --classifier experiment-3 --execute
 ```
 
-## What's Next?
+### Label Management
 
-Current status: **Phase 3 Complete** (LLM Integration working!)
+```bash
+# Apply colors to all labels
+bin/schemail labels assign-colors
 
-Next up:
-1. Build polling daemon to automatically process new emails
-2. Add more sophisticated filtering strategies
-3. Implement caching to reduce API costs
-4. Add web UI for monitoring
+# Apply specific color scheme
+bin/schemail labels assign-colors --color-scheme rainbow
 
-## Cost Breakdown
+# Clean up all experiment labels (reprocess from scratch)
+bin/schemail labels cleanup
+```
 
-**Model:** Claude Sonnet 4.5
-- ~$0.007 per email
-- ~$0.67 per 100 emails
-- ~$20 per month (100 emails/day)
+### Help
 
-**Alternative:** Claude Haiku 4.5 (cheaper, slightly less smart)
-- ~$0.002 per email
-- ~$6 per month (100 emails/day)
+```bash
+bin/schemail help
+```
 
-To switch models, edit `src/llm.rkt`:
+## Configuration
+
+### Main Config: `config/schemail.rkt`
+
 ```racket
-(define CLAUDE-MODEL "claude-3-5-haiku-20241022")  ; Use Haiku instead
+;; Default classifier (experiment-3 recommended)
+(define default-classifier 'experiment-3)
+
+;; Color scheme (rainbow = unlimited colors)
+(define color-scheme 'rainbow)
+
+;; Labels to exclude from coloring
+(define exclude-from-coloring '("Groups" "Saved"))
+```
+
+### Classifier Prompts: `config/classifier-prompts.rkt`
+
+Three prompts available. Experiment 3 is most mature:
+
+```racket
+;; Experiment 3: Explicit Inbox Zero framework
+;; - Delete: Junk, spam → archive
+;; - Respond: Quick reply → archive after sending
+;; - Defer: Needs thought → keep in inbox
+;; - Do: Requires action → keep in inbox
+;; - Delegate: Not for you → forward and archive
+```
+
+## How It Works
+
+### Label System
+
+**Two labels applied per email:**
+1. **Content label** (visible) - e.g., `Events`, `Personal`
+2. **Schemail marker** (hidden) - Marks as processed
+
+**Query for unprocessed emails:**
+```
+in:inbox -label:Schemail
+```
+
+This means:
+- First run: Process all inbox emails
+- Subsequent runs: Only new emails (no Schemail label)
+- Can reprocess by removing Schemail label
+
+### Processing Flow
+
+```
+1. Fetch unprocessed emails from inbox
+   ↓
+2. Fetch existing labels once (hash table)
+   ↓
+3. For each email:
+   - Provide existing labels to Claude
+   - Claude returns: label, should_archive, rationale
+   - Normalize label name (titlecase, spaces)
+   - Create label if needed
+   - Apply content label + Schemail marker
+   - Archive if should_archive = true
+   - Update labels hash (for next email)
+   ↓
+4. Apply rainbow colors to all labels
+```
+
+**Key optimization:** Labels fetched once, reused throughout processing.
+
+### Label Reuse (The Secret Sauce)
+
+Claude sees existing labels and their message counts:
+```
+Existing labels:
+- Events (15 messages)
+- Personal (6 messages)
+- Travel (3 messages)
+```
+
+Model is explicitly told:
+- "PREFER reusing existing labels when they fit"
+- "Only create new labels when existing ones don't match well"
+
+**Result:** 50 emails → 4 labels (model consolidates aggressively!)
+
+## Cost
+
+**Per-email cost (Claude Sonnet 4.5):**
+- ~750 tokens per email
+- ~$0.003 per email
+- ~$9/month for 100 emails/day
+
+**One-time processing:**
+- 72,762 inbox emails = ~$218 (~50-60 hours)
+- 112,786 total emails = ~$338 (~78-94 hours)
+
+**Recommended:** Start with inbox, run in batches overnight.
+
+## Examples
+
+### Example 1: Test on 10 Emails
+
+```bash
+$ bin/schemail process --last 10 --classifier experiment-3
+
+Mode: DRY-RUN (will not modify emails)
+Classifier: experiment-3
+
+Fetching 10 emails (query: in:inbox -label:Schemail)...
+Found 10 message(s)
+
+━━━ MESSAGE 1/10 ━━━
+From: Alice Example <alice@example.com>
+Subject: Meeting agenda for next month
+
+Label: Travel
+Archive: false
+Rationale: Defer - requires review of agenda and decision on dates
+
+━━━ MESSAGE 2/10 ━━━
+From: LinkedIn <messages-noreply@linkedin.com>
+Subject: People are viewing your LinkedIn profile
+
+Label: Newsletter
+Archive: true
+Rationale: Automated notification - no action needed
+```
+
+### Example 2: Process 50 Emails Live
+
+```bash
+$ bin/schemail process --last 50 --classifier experiment-3 --execute
+
+Mode: LIVE (will modify emails)
+Classifier: experiment-3
+
+[... processes 50 emails ...]
+
+✓ Done processing all messages!
+
+=== Applying 'rainbow' color scheme ===
+Found 4 user label(s), 4 with messages (0 empty, skipped)
+
+  [1/4] Travel (6 msgs) → bg:#285bac text:#ffffff
+  [2/4] Events (31 msgs) → bg:#44b984 text:#000000
+  [3/4] Personal (8 msgs) → bg:#fad165 text:#000000
+  [4/4] Jobs (5 msgs) → bg:#cc3a21 text:#ffffff
+
+✓ Applied colors to 4 label(s)!
+```
+
+### Example 3: Clean Up and Reprocess
+
+```bash
+# Remove all labels to start fresh
+$ bin/schemail labels cleanup
+# Type "yes" to confirm
+
+# Reprocess
+$ bin/schemail process --last 50 --classifier experiment-3 --execute
+```
+
+## Troubleshooting
+
+### OAuth Issues
+
+**Problem:** Token expired or corrupted
+
+**Solution:**
+```bash
+# Remove corrupted token
+rm ~/.oauth2.rkt/tokens
+
+# Re-run (will trigger OAuth flow)
+bin/schemail process --last 1 --classifier experiment-3
+```
+
+### Labels Not Applying
+
+**Problem:** Dry-run mode active (forgot `--execute`)
+
+**Solution:** Add `--execute` flag:
+```bash
+bin/schemail process --last 10 --classifier experiment-3 --execute
+```
+
+### Too Many Labels Created
+
+**Problem:** Model creating too many specific labels
+
+**Solutions:**
+1. Run on more emails (consolidation improves with scale)
+2. Use Experiment 3 (most aggressive consolidation)
+3. Clean up and reprocess (labels hash will help)
+
+### API Rate Limits
+
+**Problem:** Processing too many emails too fast
+
+**Solution:**
+- Process in smaller batches (50-100 at a time)
+- Add delays between batches
+- Claude API is quite generous (shouldn't hit limits normally)
+
+## Next Steps
+
+### After Initial Processing
+
+1. **Review labels in Gmail** - Check if categories make sense
+2. **Manually adjust if needed** - Rename labels, merge similar ones
+3. **Reprocess to consolidate** - Run again, model will reuse your labels
+4. **Set up regular processing** - Process new emails daily/weekly
+
+### Advanced Usage
+
+**Process specific labels:**
+```bash
+bin/schemail process --query "label:Newsletters" --classifier experiment-3 --execute
+```
+
+**Reprocess everything:**
+```bash
+bin/schemail process --query "-label:Schemail" --last 1000 --classifier experiment-3 --execute
+```
+
+**Process archives:**
+```bash
+bin/schemail process --query "in:all -label:Schemail" --last 500 --classifier experiment-3 --execute
 ```
 
 ## Documentation
 
-- **`notes/agentic.md`** - Complete implementation details, architecture, test results
-- **`TODO.md`** - Development roadmap and progress tracking
-- **`README.md`** - Original design discussion and rationale
-- **`NOTES.md`** - Three LLM approaches (structured JSON, tool calling, hybrid)
-
-## Key Concepts
-
-**Agentic Processing:** Instead of "if this then that" rules, you give the LLM high-level goals and it decides what to do. More flexible, handles edge cases you didn't anticipate.
-
-**Tool Calling:** Claude has access to 5 "tools":
-- `apply_label(name)` - Label an email
-- `archive_email()` - Archive it
-- `star_email()` - Star it
-- `mark_as_read()` - Mark as read
-- `do_nothing(reason)` - Leave it alone
-
-**Dry-Run Mode:** Test everything safely before making real changes.
-
-**Hybrid Filtering:** Use fast pattern matching for obvious cases, LLM for complex ones. Best of both worlds.
-
-## Need Help?
-
-1. Check `notes/agentic.md` for detailed implementation docs
-2. Check `TODO.md` to see what's implemented
-3. Run tests to see it in action
-4. Review `config/preferences.rkt` to understand the prompt
+- **[README.md](README.md)** - Full project overview
+- **[TODO.md](TODO.md)** - Development roadmap
+- **[notes/classifier-experiments.md](notes/classifier-experiments.md)** - Detailed test results
+- **[notes/flat-label-experiment-results.md](notes/flat-label-experiment-results.md)** - Flat vs nested comparison
 
 ## Philosophy
 
-**From the README:**
-> "The config-representation would be in the same language as the implementation"
+**Inbox Zero principles:**
+- Inbox = Todo list (not archive)
+- Process emails quickly
+- Archive after action
+- Labels for context, not storage
 
-This is the core Lisp insight. Your filters are code, your code is data. The system is elegant because configuration and implementation speak the same language.
+**Flat labels:**
+- Simple beats complex at small scale
+- No wasted empty parents
+- Model chooses semantically meaningful categories
+- Room to grow as needed
 
-**On LLMs:**
-We chose the **agentic approach** (tool calling) over strict rules because:
-- More flexible (handles edge cases)
-- More maintainable (one prompt vs. 50 rules)
-- More intelligent (LLM understands context)
-- More fun (watching Claude make decisions is cool!)
+**AI-first:**
+- High-level instructions, not specific rules
+- Model learns from existing labels
+- Handles edge cases gracefully
+- Adapts to your email patterns
 
 ---
 
-**Status:** Working! Tested! Ready for Phase 4 (daemon)! 🚀
+**Ready to get started? Run your first 10 emails!**
+
+```bash
+bin/schemail process --last 10 --classifier experiment-3
+```

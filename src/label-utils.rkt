@@ -9,7 +9,10 @@
          ensure-schemail-marker
          ensure-label-hierarchy
          apply-content-and-marker-labels
-         archive-message)
+         archive-message
+         get-labels-with-counts
+         format-labels-for-prompt
+         update-label-hash!)
 
 ;; ============================================================================
 ;; Label Normalization
@@ -101,3 +104,60 @@
   (displayln "  → Archiving (removing from INBOX)")
   (gmail-modify-message message-id #:remove-labels '("INBOX"))
   (displayln "  ✓ Archived"))
+
+;; ============================================================================
+;; Label Discovery
+;; ============================================================================
+
+;; Get all user labels with message counts
+;; Returns hash table: (hash label-name count)
+;; Excludes system labels, Schemail marker, and configured exclusions
+(define (get-labels-with-counts #:exclude [exclude-list '()])
+  ;; Get all labels
+  (define all-labels (gmail-list-labels))
+  (define label-list (hash-ref all-labels 'labels '()))
+  
+  ;; Filter to user labels (exclude system, Schemail, and exclusion list)
+  (define user-labels
+    (filter (λ (label)
+              (define name (hash-ref label 'name))
+              (define type (hash-ref label 'type))
+              (and (equal? type "user")
+                   (not (equal? name "Schemail"))
+                   (not (member name exclude-list))))
+            label-list))
+  
+  ;; Fetch full details for each label to get message counts
+  ;; Build hash table as we go
+  (define labels-hash (make-hash))
+  (for ([label user-labels])
+    (define label-id (hash-ref label 'id))
+    (define full-label (gmail-get-label label-id))
+    (define name (hash-ref full-label 'name))
+    (define count (hash-ref full-label 'messagesTotal 0))
+    (when (> count 0)  ; Only include labels with messages
+      (hash-set! labels-hash name count)))
+  
+  labels-hash)
+
+;; Format labels hash for prompt inclusion
+;; Returns formatted string: "- Label Name (N messages)\n- ..."
+(define (format-labels-for-prompt labels-hash)
+  (if (hash-empty? labels-hash)
+      "None (first email being processed)"
+      (string-join
+       ;; Sort by count descending for display
+       (sort
+        (for/list ([(name count) (in-hash labels-hash)])
+          (format "- ~a (~a message~a)"
+                  name
+                  count
+                  (if (= count 1) "" "s")))
+        string<?  ; Alphabetical for now, could sort by count
+        #:key values)
+       "\n")))
+
+;; Update label hash when a new label is created
+;; Increments count if exists, adds with count 1 if new
+(define (update-label-hash! labels-hash label-name)
+  (hash-update! labels-hash label-name add1 0))

@@ -139,12 +139,45 @@
 
 ## Phase 6: Nice-to-Have
 
+### Calendar Integration (Separate Tool)
+- [ ] **Action-based calendar classifier:** Similar to email classifier but for calendar actions
+  - Extract event details from `Invitation` labeled emails
+  - LLM decides: create_event, decline_event, request_more_info, do_nothing
+  - Parse: date, time, location, attendees from email body
+  - Create Google Calendar events with email reference
+- [ ] **Implementation options:**
+  - Separate tool (`schemcal`) that reads labeled emails
+  - CLI: `schemail calendar sync --label "Invitation"`
+  - OAuth for Google Calendar API
+  - Duplicate detection (don't create event if already exists)
+- [ ] **Integration points:**
+  - Reads emails with `Invitation` or `Meeting` labels
+  - Optional: Update events on RSVP changes
+  - Optional: Extract meeting times from `Planning` emails
+- **Status:** TODO for Phase 5+, document action-based approach
+
+### Label Structure Evolution
+- [ ] **Test flat labels at scale (200 emails):**
+  - Current: 6 nested labels (Event/Invitation, Action Required/Response, Meeting/Planning)
+  - Proposal: 6 flat labels (Receipt, Newsletter, Notification, Invitation, Response, Planning)
+  - Question: Do nested labels add value at small scale (6 labels)?
+  - Parent labels are empty (0 messages) - wasted space?
+- [ ] **Compare with Inbox Zero product structure:**
+  - Inbox Zero uses 7 flat labels: To Reply, Awaiting Reply, FYI, Actioned, Newsletter, Marketing, Calendar, Receipt, Notification, Cold Email
+  - Action-oriented: "To Reply" and "Awaiting Reply" make it to inbox
+  - Archive after "Actioned"
+  - ~7 labels might be optimal for inbox management
+- [ ] **Decision criteria:**
+  - If nested structure doesn't help navigation at 200 emails, migrate to flat
+  - Nudge Experiment 3 toward action-oriented labels (To Reply, Actioned, FYI)
+  - Consider Inbox Zero's proven structure (7 labels, action-based)
+- **Status:** Testing at 200 emails to inform decision
+
 ### Classifier Improvements
-- [ ] **Label Consolidation:** Feed existing labels to classifier to encourage reuse
-  - Current issue: Model creates hyper-specific labels (e.g., `Dmv Mdl Confirmation`)
-  - Both Experiment 1 and 2 show 10 emails → 10 labels (100% proliferation)
-  - Potential solution: Include list of existing labels in prompt with instruction to reuse when appropriate
-  - Test this after Experiment 3 completes
+- [x] **Label Consolidation:** Feed existing labels to classifier to encourage reuse ✅ SOLVED!
+  - Solution implemented: Pass labels hash through pipeline
+  - Results: 50 emails → 11 labels (Exp 1) vs 6 labels (Exp 3)
+  - Experiment 3 wins: 45% fewer labels, better discrimination
 
 ### Advanced Features
 - [ ] Filter conditions beyond LLM (sender whitelist, regex, etc.)

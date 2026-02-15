@@ -5,6 +5,22 @@
 (provide (all-defined-out))
 
 ;; ============================================================================
+;; Classifier Configuration
+;; ============================================================================
+
+;; Default classifier experiment to use
+;; Options: 'experiment-1 (blank slate + label context)
+;;          'experiment-2 (inbox zero principles + label context)
+;;          'experiment-3 (explicit inbox zero framework + label context) [RECOMMENDED]
+;; 
+;; Experiment 3 is the production choice after 50-email testing:
+;;   - 45% fewer labels than Experiment 1 (6 vs 11)
+;;   - Better inbox discrimination (only human-action emails kept)
+;;   - Action-oriented categories (Action Required/Response)
+;;   - Framework thinking prevents label proliferation
+(define default-classifier 'experiment-3)
+
+;; ============================================================================
 ;; Label Color Configuration
 ;; ============================================================================
 
@@ -28,6 +44,7 @@
 ;; Get configuration value
 (define (get-config key)
   (case key
+    [(default-classifier) default-classifier]
     [(color-scheme) color-scheme]
     [(exclude-from-coloring) exclude-from-coloring]
     [else #f]))

@@ -60,8 +60,17 @@
 ;; ============================================================================
 
 ;; Call Claude API with structured output
-(define (claude-classify message prompt)
+(define (claude-classify message prompt labels-hash)
   (define email-text (format-email-for-llm message))
+  
+  ;; Format existing labels and inject into prompt
+  (define formatted-labels (format-labels-for-prompt labels-hash))
+  (define final-prompt (string-replace prompt "{existing_labels}" formatted-labels))
+  
+  ;; Debug: show labels being sent
+  (unless (hash-empty? labels-hash)
+    (displayln "\nExisting labels being provided to model:")
+    (displayln formatted-labels))
   
   ;; Build request with output_config for structured outputs
   (define request-body
@@ -71,7 +80,7 @@
                                                     'schema CLASSIFICATION-SCHEMA))
             'messages (list (hasheq 'role "user"
                                     'content (format "~a\n\nEmail to classify:\n\n~a"
-                                                    prompt
+                                                    final-prompt
                                                     email-text)))))
   
   (displayln "\n=== Calling Claude API (Classifier) ===")
@@ -169,8 +178,9 @@
 ;; ============================================================================
 
 ;; Classify an email and return structured result
+;; Updates labels-hash when new labels are created
 ;; Returns: (values label should-archive? rationale)
-(define (classify-email message prompt #:dry-run? [dry-run? #f])
+(define (classify-email message prompt labels-hash #:dry-run? [dry-run? #f])
   (displayln "\n========================================")
   (displayln "LLM Email Classification")
   (displayln "========================================")
@@ -178,8 +188,14 @@
   (displayln (format "Subject: ~a" (message-subject message)))
   (displayln (format "Mode: ~a" (if dry-run? "DRY RUN" "LIVE")))
   
-  (define classification (claude-classify message prompt))
+  (define classification (claude-classify message prompt labels-hash))
   (apply-classification message classification #:dry-run? dry-run?)
+  
+  ;; Update labels hash with the label we just used (unless dry-run)
+  (unless dry-run?
+    (define label (hash-ref classification 'label))
+    (define normalized-label (normalize-label label))
+    (update-label-hash! labels-hash normalized-label))
   
   ;; Return as values tuple
   (values (hash-ref classification 'label)
@@ -187,5 +203,5 @@
           (hash-ref classification 'rationale)))
 
 ;; Convenience wrapper for dry-run
-(define (classify-email-dry-run message prompt)
-  (classify-email message prompt #:dry-run? #t))
+(define (classify-email-dry-run message prompt labels-hash)
+  (classify-email message prompt labels-hash #:dry-run? #t))
