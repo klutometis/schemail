@@ -1,15 +1,15 @@
-# Schemail - Intelligent Email Filtering with Claude AI
+# Schemail - Intelligent Email Filtering
 
-**Production-ready email classification system using Claude AI to automatically organize and filter Gmail.**
+**Production-ready email classification system using AI to automatically organize and filter Gmail.**
 
 ![Schemail Screenshot](assets/screenshot.png)
 
 ## What It Does
 
-Schemail uses Claude Sonnet 4.5 to intelligently classify your emails into clean, flat labels and automatically archive non-actionable messages following Inbox Zero principles.
+Schemail uses large language models to intelligently classify your emails into clean, flat labels and automatically archive non-actionable messages following Inbox Zero principles.
 
 **Key Features:**
-- 🤖 **AI-powered classification** - Claude decides labels and archive behavior
+- 🤖 **AI-powered classification** - LLM decides labels and archive behavior
 - 📊 **Flat label structure** - Simple, clean categories (no nested hierarchy)
 - 🎨 **Automatic color coding** - Rainbow colors for visual organization
 - ⚡ **Label reuse** - Model learns existing labels to prevent proliferation
@@ -28,7 +28,7 @@ Schemail uses Claude Sonnet 4.5 to intelligently classify your emails into clean
 
 - Racket 9.0+
 - Gmail account with OAuth2 credentials
-- Anthropic API key (Claude)
+- Anthropic API key
 
 ### Installation
 
@@ -334,4 +334,4 @@ MIT License - See LICENSE file for details
 
 ## Credits
 
-Built with [Racket](https://racket-lang.org/) and [Claude](https://www.anthropic.com/claude) by [Peter Danenberg](https://github.com/klutometis).
+Built with [Racket](https://racket-lang.org/) by [Peter Danenberg](https://github.com/klutometis).
