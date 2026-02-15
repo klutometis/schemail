@@ -1,0 +1,1711 @@
+&gt;&gt; Hello.
+Okay.
+Just a quick note, if you can't find seats
+here there is an overspill room for this one.
+Its tunist, I believe, is the overspill here
+on campus.
+So if you, if you need somewhere else to watch
+this from that's the place.
+When it comes to superheroes, I've always
+been more of a Spiderman than a Superman fan
+personally, and I'll come back to that reference
+in a minute.
+Today it's my great pleasure to introduce
+Merlin Mann who I've read and followed for
+many years.
+He's the creator of 43 Folders website.
+Also slightly less well known but very good
+is his Five's website.
+That's--that's a really good one if you haven't
+checked that out, and his got a number of
+other projects including MacBreak.
+MacBreak weekly, regular on the Twit, pod
+casting network and so forth.
+So, I mentioned Spiderman.
+Merlin's a lot like Spiderman to me.
+Spiderman is the scan of really cool superhero
+with all these powers.
+But occasionally he swings into buildings,
+so has to wash his own underwear.
+And to me that makes that character much more
+accessible.
+And when it comes to getting things done,
+I feel the same way about Merlin's advice.
+He swings into the occasional building or,
+you know, occasionally deals with the day-to-day
+issues of washing your own underwear.
+And to me, that advice just makes a lot more
+sense.
+So, with that said, Merlin Mann.
+&gt;&gt; MANN: Thank you very much.
+I can deal with this guy here.
+Can you guys--can you hear me okay?
+&gt;&gt; Oh yeah I'll take that.
+&gt;&gt; MANN: A thing is if I work at Google, I've
+had other people that could wash my underwear
+for me, so three, four.
+You guys get laundry, I don't know if you
+know.
+Maybe it's just some of the people that have
+been here for awhile.
+&gt;&gt; [INDISTINCT] so.
+&gt;&gt; MANN: Yeah?
+They don't pick it up for you?
+Yeah.
+Dry cleaning them, don't do that.
+Yeah.
+I've--I was bragging my friend about this
+the other day, "Oh God, you won't replace
+it.
+You're so infantilized, they do laundry for
+you."
+He goes, "Yeah, but I pay for it."
+I went, "Yeah.
+Okay, well."
+Still, it's pretty good.
+Thanks a lot for having me today.
+I'm going to talk about email, and something
+that I call Inbox Zero based on a series of
+articles that I wrote for 43 Folders awhile
+back, a year or two ago.
+And has a lot of to do with my own struggles
+over the years to deal with high volumes of
+email.
+1993, I got my first email account.
+It's a Pine account on the Calahase free net.
+This is a wonderful thing, you get a free
+internet account, you got a shell account.
+Anybody in town can get it.
+Look at the Simpsons on go for holes till
+two in the morning.
+It was amazing.
+And it blew my mind.
+I mean, I used Microsoft mail before, I had
+never had internet email and it was astonishing.
+I new probably, maybe a dozen people that
+have email addresses, most of people who were
+in like grad school.
+I had a friend who was going to Oxford, I
+could email this guy, I could write him a
+letter.
+It would get there immediately and then he'd
+write me back.
+I mean, I know a lot of you are younger than
+me, but this was astonishing.
+This was mind blowing.
+I mean the sense of like connecting with people.
+People you hadn't seen forever, you found
+out that he got an email address, and I'll
+send your emailing.
+Its email, you've got to have the email.
+It was fantastic, it was unbelievable.
+And every little email I wrote was like a
+special little letter.
+It was like I was getting a little hug from
+somebody.
+You know, I was returning it with a little
+hug.
+A dozen people in a little network.
+International network of hugs, and it felt
+so awesome.
+And really, it kind of stayed that way for
+like, probably, almost two years.
+It liked remained astonishing to me that I
+had email.
+It's still kind of freaks me out a little.
+It didn't always stay that way.
+Eventually, more than a dozen people found
+out what my email address was.
+I suspect people, more than that know yours
+as well.
+And somewhere along the way, email went from
+being kind of this funny hip thing that you
+did with your geek friends, into being the
+lingua franca for how you dealt with your
+entire life.
+And it became kind of the one source for all
+incoming and outgoing information.
+And it started to get a lot harder.
+And all of a sudden, the messages become a
+little bit a less like careful letters and
+became more like, I don't know, like an avalanche
+falling on your head every morning.
+And it became a lot less fun, and it became
+a lot less about a network of hugs and that
+made me sad.
+In 1993, I didn't need a system for doing
+email.
+The system was, I logged in and I tried to
+remember the commands for doing things in
+Pine and I got my email, and that was all
+there was to it.
+To have a system for doing email with a dozen
+people in a network seems kind of crazy and
+anal, why would I need that.
+And yet today, I feel like the only way we're
+going to succeed at a job with the most important
+soft skills you can have is figuring out how
+to deal with the high volume of email.
+And the only way that you're going to do that
+is to do build up with some kind of a system
+in place that's going to be simple and repeatable
+and has allow--going to allow you to have
+an actual life outside of email.
+It actually can happen, believe it or not.
+I think this does have to be a very simple
+system, it has to be a relatively complete
+framework that regardless of who the message
+is from or what kind of content type it is,
+you know how to deal with everything that
+comes into your world.
+You're reducing the number of possible options
+for what something could be and turning it
+into a relatively small number of verbs for
+what you can actually do with any of this
+stuff.
+I think one of the most important things an
+email system can do is to build walls where
+they don't yet exist.
+A lot of people right now are for practical
+purposes living in their inbox.
+They leave their email open all day long,
+it's auto checking throughout the day.
+Little blips come up about every minute, and
+email becomes the nexus for everything they
+do with work.
+They use it as a to-do list manager; they
+use it as a calendar.
+I'm not talking about outlook, I'm talking
+about people who like literally scroll through
+their inbox to decide what meetings they have
+to go through the day.
+To quote Walter Sobchak, "You're entering
+a world of pain".
+That is--that is not a way to live, that's
+not a system.
+That's crazy.
+Thus edges are so important.
+Because you guys are knowledge workers, which
+is a fancy way of saying "you add value to
+information".
+And if you're a knowledge worker, the two
+most precious natural resources you've got
+are your time and your attention.
+They're both finite and they're both irreplaceable.
+There's no way you're ever going to add a
+couple hours to the day, and as much as you
+emax people, probably you think it's possible;
+you can't actually do 17 things at one time.
+Multitasking, in my experience, tends to be
+something of a myth.
+Where you decide to put your time and attention
+says a lot about who you are.
+It says a lot about you as a human being.
+You have some idea in your head of stuff that's
+high priority to you, right?
+All the stuff that really matters.
+If I sat down and like ask you, you know,
+what's really important to you?
+You go,"Oh my family and my church group and
+I'm a deacon."
+But then I go and I look in your email box,
+and your news feeds, and your web browser,
+if I win and I got all CSI on that, like,
+what with the last two weeks of your electronic
+life say about how it maps to the stuff that
+you claim is really important?
+Maybe really well, in which case you should
+leave.
+But if you're like me and you struggle with
+that, you need to have these walls and you
+need to find ways to honor where your time
+and attention go.
+And there's probably no better way to have
+your time burgled than by not having a healthy
+relationship with your email and not having
+a sense of--of where stuff belongs.
+As much as your time and your attention are
+finite, the demands on your time and attention
+are infinite.
+There's no end to how much people can ask
+of your time and your attention.
+You're ultimately the one who's going to have
+to make decisions about how your attention
+and your time map to the things that you actually
+do the actions in your life.
+There's a really a good writer and developer
+named Joel Spolsky, you probably know him
+from Joel on Software.
+And he uses an example that I like a lot that
+I'm going to steal.
+He says that whether you're developing software
+or what have you, it's good to think about
+the amount of available time and effort as
+representing a box, and that's a box that
+got a certain number of cubic inches available
+in it and you can put whatever you want into
+it.
+But every kind of task that you want to add
+to that box is basically like a little block.
+Big task are big blocks and little task, a
+little blocks.
+But no matter how you cut them up, they're
+still only so many cubic inches in the box.
+The fact of the matter is that it's all about
+opportunity cost.
+Every time you put a crap block in your box,
+it means a really cool block doesn't get to
+go in there.
+And as much as we sometimes feel like we're
+beholden to bosses and teams, we're ultimately
+the traffic cop for this kind of stuff.
+So one idea behind--this is, you know, obviously
+kind of a more general point, but I think
+it really keys to the idea of Inbox Zero because
+it's a way of saying that ultimately you want
+not have to worry about taking stupid blocks
+out of the box.
+It's better to make sure they never get in
+there in the first place, and that requires
+a very kind of proactive approach to managing
+the action in your life.
+And that's really what this is all about.
+If you're managing actions, you're ensuring
+that your time and attention are always mapping
+to the stuff that you claim is important.
+And as heretical as this might sound, it also
+means you could spend less time doing email
+and discover that there are things outside
+the world of email that are also your job
+and your life.
+It's true, I promise.
+Inbox Zero has a lot of prior arc.
+In particular, I'm taking a lot of these ideas
+from David Allen's book "Getting Things Done".
+A lot of other stuff--show hands, "Getting
+Things Done" people, anybody read it--read
+it, you know?
+In particular, a lot of the ideas around processing,
+if you are familiar with TTD, it's going to
+have a lot to do with this.
+David Allen has a phrase that he uses in Getting
+Things Done that I like a lot.
+He calls Getting Things Done "advanced common
+sense."
+And I think it's exactly what a lot of this
+stuff is.
+The stuff that I'm going to talk to you about
+today could not be anymore obvious.
+The trouble is we don't always do the obvious
+things and so putting them into some kind
+of framework that you can get your head around,
+can be a great way to keep things on the rails.
+So the idea behind Inbox Zero.
+First of all, we admit to ourselves that email
+is really nothing more than a medium.
+It is a center--Steven might say it's a tube.
+It gets things from one place to another.
+And I think that's really critically important.
+There's no need for you to live in email.
+There's no need for you to be there.
+That's not where the action is, right?
+Emails?
+Swell, it's great for getting stuff around,
+but you don't want to be focusing exclusively
+on the email itself to the exclusion of the
+other things that are in the email that need
+to be deliberated into other places.
+Like appointments, and tasks, and reference
+materials.
+I really believe there's a single place for
+anything.
+That's going to differ for each one of us.
+We're all going to have our own idea about
+what that right place is, but once you know
+where stuff goes, it's get a lot easier to
+figure out where to put it.
+And having an idea in your head about where
+stuff needs to land and where it could potentially
+live forever, that's your job to figure out.
+The single practice that I think could really
+change your life starting today is to process
+to zero.
+Process to zero every time you check your
+email.
+You never check your email without processing
+which I know, sounds, again, heretical.
+But a lot of people get really good at checking
+email and they don't always get so good at
+doing anything about it.
+So we're going to show you how to do processing.
+But you're never going to have an over full
+inbox if you can get out of the habit of allowing
+that stuff to kind of stack up in the first
+place, and that begins with processing every
+time you check.
+And finally, it's an action based system kids.
+This is all about converting stuff into action,
+even if that action means deleting the email.
+It's about deciding in the moment what you
+need to do about it and then moving on.
+Processing is probably the most important
+piece of that in terms of how this is going
+to be affecting you from--from day-to-day.
+I think one of the--one of the problems is
+that a lot people, especially kind of the
+Blackberry kids, think that checking is enough.
+"I'm going to check my email.
+Got to go.
+Check my email."
+Well, you know, you checked something and
+theoretically you're doing that because of
+what?
+Because there's a fire in there that might
+be coming up?
+Okay, well you checked it, there's no fire
+but there's also five other emails that you
+haven't done anything with.
+Well, you know, checking brings with it a
+certain amount of responsibility.
+If you're checking on your friend's cat while
+they're out of town, it's incumbent upon you
+to tell them if anything goes wrong with the
+cat.
+You check it on Monday and the cat's fine.
+Check out on Tuesday, the cat's fine.
+Check it on Wednesday, it's spontaneously
+combusted.
+You don't just come back on Thursday and hope
+that it got better, you've checked on the
+cat and there's a problem and now you deal
+with it.
+Don't let your Blackberry turn into exploding
+cats.
+That's--that's not a good thing.
+But, you know, at the same time the good news
+is, it means less than responding, right?
+There's more than checking, less than responding.
+Responding is one possible outcome of processing,
+but it's not the only one.
+That's 1993 talking.
+Every time you think every email you get needs
+a response.
+I know less of you probably are in that place,
+but somewhere, search your mind and see if
+there's maybe some little corner that still
+thinks, "Oh man, I got to respond to 200 emails,"
+and you don't.
+You got to process 200 emails, which is so
+different.
+At the end of the day, processing means that
+you're going to look at every single piece
+of email in your inbox and decide what it
+means to you, where does this go?
+Or to make our point, what actions do I have
+to take as a result of this email?
+Think of yourself as like a minor, you're
+an information minor, an action minor.
+There's little veins of gold and probably
+fool's gold in some cases in your email.
+And it's your job to figure out what that
+is, and that's kind of what the processing
+is all about.
+I have this idea that a--if you work in a
+Deli and you're behind the counter, people
+keep bringing you orders, orders, orders.
+A lot of people I know would think "Hmm, these
+orders are really interesting.
+I should check to see if they have any orders.
+Hmm, yeah, five more orders.
+Okay.
+Get any orders?
+Oh, yeah come orders."
+What are hush and hush organize these?
+Should I--alphabetical or maybe numerical?
+No, you're making sandwiches, you're not stacking.
+The whole point of this is to go make a damn
+sandwich, you know?
+If you decide around all day try to figure
+out, are there any new orders?
+That's not the point.
+Focus on putting out the sandwiches and don't
+worry so much about the orders.
+Once you've mined the gold out of your email,
+it's a dead skeletal husk and you can throw
+it away.
+When you're processing, the idea is to liberate
+all of that stuff and be done and throwing
+the husk away as quickly as possible.
+Don't--don't cling in this, like sad, like
+Buddhist way to your--to your email in this
+like weird CYA, you know, anxiety fast.
+You just, you know, move it on, get it out
+of the way.
+As quickly as you can, get it off your plate.
+And the way we're going to do this is through
+a limited number of options from which you
+can do with a given email.
+This is my system.
+This is what works for me, okay?
+So you're end number here might be different.
+But from the way I do this, there's five potential
+things that can happen to any email.
+Five and only five verbs that tell me everything
+I can do with an email.
+Why is this a good thing?
+Well, like right now, just think to yourself,
+imagine your inbox, is there any email in
+your inbox right now that you've read but
+you haven't done anything about?
+Maybe a couple--couple of you.
+Chances are, because you don't--you haven't
+really thought about what the possible verbs
+are.
+And it's weirdly comforting once you know
+what those verbs are for yourself, in your
+own little system, it could be--it could be
+really comforting to be able to just blow
+through that stuff.
+Oh gosh, you should delete so much of your
+email.
+It's just unbelievable how much email you
+can delete or archive.
+You know, kind of roughly--I'm going to use
+my laser pointer.
+These are kind of roughly, in the order of
+desirability just for the way I think about
+this stuff, but if I can delete an email,
+boy, I'm for damn sure going to delete it.
+I'm going to get it out of there.
+The default state of your inbox should probably
+not be keep sitting here until I start weeping.
+That's not a good approach.
+If you find yourself with the little scroll,
+we all go and up and down while tears run
+down your face like something's--something's
+not working.
+And so, can you delete it?
+Okay, delete it.
+That's great.
+Is this something where this would really
+be better for somebody else to do?
+You can delegate it to somebody else.
+That could be delegated horizontally or vertically,
+it just means somebody else is going to work
+on it.
+And if it's a new email that you can respond
+to very quickly, just blow out a one, two,
+three line response in one or two minutes,
+keep moving, keep the ball in motion.
+It might be something that you want to defer.
+This can be a tricky one but if it's something
+where you need to respond to this but it's
+going to take a little bit of outside work,
+it's still primarily an email based task,
+you might want to kind of put that aside to
+do for later on.
+And if finally, its something you can do,
+go do it now and be done with it, right?
+Advanced common sense.
+Yes, I will give you that.
+But if you can find out what your little verbs
+are and then make sure that you're always
+doing them, you're never going to have that
+stuff stacking up in your inbox again because
+you know there's only so many outcomes and
+it's just a matter of you, as quickly as possible,
+determining which one of those outcomes it
+is and then dispensing as quickly as you can.
+Let's talk about each in just a little bit
+more detail.
+I include archiving and deleting and I'll
+explain why in a minute.
+But obviously, you know, if it's--if it's,
+you know, I don't, urban myths from your aunt,
+if it's Viagra adds or whatnot, you know to
+junk that.
+But, I mean, there's a lot of stuff that you
+get that you can also junk.
+Once you get really good and fast at this
+stuff, it's going to blow your mind how much
+of your email you throw away once you kind
+of lose the fear.
+But anything that doesn't have any place in
+your life and never will, get rid off.
+That's said, if there is stuff that you will
+need in the future, archive it.
+And what is archiving?
+Archiving, for me, is a single folder.
+It's a single folder called archive.
+It does not 24 folders, friend.
+It's not--it's not coming up with the most
+crazy Byzantine taxonomically complete system
+that you could think of.
+Let's be honest.
+For those of you who do have the 24 folder
+Byzantine system, when is the last time you
+used it to actually find anything?
+Maybe you do.
+Maybe you use it all the time.
+User or win a price.
+But for most of you, I've seen you.
+You sit there and you go, "Wow!
+Is this--is this going to be definitely 2007
+July blog relate--is a blog related or CMS?
+Really it's more like my ruby ultimate golf
+group.
+Really it should go here, but I'll tag it
+and duplicate it."
+Dude it's the modern age.
+You got the freaking Gmail search for it.
+Flag it if you need to flag it and put it
+into a folder, that's great.
+But ask yourself--and I will give--I will
+grant you, some of you need this structure
+because you're crazy.
+But if--if--but be honest with yourself, what
+is the payoff?
+Are you getting for the amount of time that
+you--I'm on a Mac, I grab an email and I start
+dragging it.
+I have to start thinking now, where does this
+go?
+For an email that I'm going to archive, I
+have to think about where it goes.
+I'm not a librarian.
+I have a blog.
+Like it all goes into archive.
+Ask yourself, what is the minimally Byzantine
+system that you can tolerate that will still
+allow you to find stuff later on?
+Does not need to be taxonomically satisfying,
+it needs to be easy to find.
+There's a really big difference.
+But delete whatever you can and just try to
+keep it simple.
+Delegating is kind of a no-brainer.
+As--as you're forwarding it, usually to somebody,
+and you're saying, "Hey, I think--can you
+give--can you give this person this information,"
+or what have you.
+The only addition I would add to that, there's
+another action associated with that, especially
+if you do GTD which is the idea of having
+a follow-up.
+So, if you want to be proactive about this
+stuff, I've used that twice so I need to put
+a dollar in the jar now.
+If you want to be proactive about this, you
+want to drill down that net and open the kimono.
+Seriously, [INDISTINCT], if you want to--if
+you're going to delegate to somebody, it's
+a good idea to give yourself a little tickler
+and say, "Okay, in two weeks give yourself
+a reminder to make sure it happen."
+Everybody's got a different way to handle
+this.
+I have a--in my--in my--I use omni focus,
+is a program I use, and I have a little context
+in there called "Waiting On" where I could
+watch stuff.
+[INDISTINCT] I put things on the calendar.
+But I think it's a good idea that whenever
+you can start getting in this mind set of
+converting things into actions.
+If not, always just someone else's job, and
+then just kind of get out of the way as quick
+as you can.
+Quick responses.
+I'm guessing this is probably a huge amount
+of what you get.
+I know you kids are on a lot of email list,
+you get a lot of stuff to the day you're participating
+in, learn to--to blow out a really fast, like
+one or two line reply, is such a ninja move.
+There's a website that started, in the last
+week or two, called five sentences.
+I don't know if you guys have seen this.
+There's five sentences, four sentences, three
+sentences and two sentences.
+And there--there are Spanish sites, so they
+end in dot ES, five sentences.
+And it's kind of funny.
+And it's--it's a way of saying to people,
+"I have undertaken it.
+That from now on, no email I'll ever write
+will be longer than five sentences."
+And so you put in your [INDISTINCT] or your
+emails and people know that you're not being
+terse, you're being efficient--maybe you're
+being terse.
+Maybe you're from New England, you're just
+nationally taciturn.
+But get it out as quick as you can.
+And--and, you know, I think if you can--I
+think there's this, I don't know, I want to
+come up with some kind of fancy computer term
+for this, but there's got to be some phrase
+for like the disproportion it weigh that--how
+many times have you gotten something, usually
+from over your pay grade, or somebody sends
+you a one line email that represents some
+month of work for you?
+There's a terribly disproportion of thing
+going on in email.
+And the same thing happens when somebody writes
+you a 25 paragraph email.
+Do you feel like you've got to write them
+back a 25?
+I struggle with this.
+I get a lot of email from really nice people
+and I--there's no way I could ever write that
+much.
+So you've got to find your comfort zone with
+this stuff, but being able to respond quickly
+and just kind of keep the ball in motion.
+Keeping the ball in motion is very important.
+If you don't have enough information to respond
+to this right now, ask a question.
+Just keep things moving and get it out of
+your inbox.
+This one's thorny, but it's important and
+this is the idea of deferring.
+If you're doing a quick check-in on your email
+and you're processing, there maybe something's
+that you don't want to deal with right now
+but you will want to deal with later.
+If there's stuff where you're going to need
+extra information before you can respond,
+you might want to put that in that.
+Personally, I put this into a "to respond"
+folder and then throughout the day I go down
+and try to window that down, so that I'm kind
+of, hopefully trying to empty that by the
+end of everyday, don't always do it.
+But the idea is that you're inbox really kind
+of should be for stuff you haven't read yet.
+And then that, again, that's common sense.
+But there's a lot of you, probably, a few
+of you who have email and then it's read you're
+not doing anything with.
+Well, you know, if you need--figure out what
+you need to get rid of it, and then do that
+and get it out of the way.
+And then finally, if there's something that
+you can do, this is so important.
+Do it or capture a place holder for that action
+of doing it.
+So what does that mean?
+If there is something I could do right now,
+if I can just go walk a folder down two cubes,
+go do it, you're done with it, email is finished.
+But if it's something you can't do now, or
+shouldn't do now or won't do now, what if
+it's a meeting in the future?
+Put it on your calendar.
+You would be amazed how many people decide
+what they're going to do today by looking
+at their inbox.
+Their inbox means this hasn't blown up yet.
+It means these are things I still bad--feel
+bad enough about that I haven't put them in
+my trashcan.
+As much as possible, liberate activity out
+of your inbox.
+I just cannot put this strongly enough.
+Keep a separate list for tasks, it doesn't
+matter whether--what you're using.
+You guys don't have a task tab yet, you need
+that.
+But you could use, you know, whatever.
+You could use "remember the milk", you could
+use a Google docs, a diced text files to remember
+a lot of this stuff.
+But don't live out of your inbox and don't
+use it as a to-do list because that will make
+you crazy.
+I just--I feel so strongly about this.
+There's one and only one thing you can do
+with each one of this, but the thing you don't
+do is just let it sit around without a reason
+because that's when the procrastination starts.
+And as soon as you see, I don't know if you
+guys have ever dealt with clutter in your
+life, but it happens with clutter in their
+home, too.
+Where like one area you put down a jacket
+and then pretty soon there's a pair of pants
+on it, and then there's hook number four and
+there's some quarter wood and like, pretty
+soon that area is completely gone.
+The same as true here.
+If you keep your inbox tidy, you're going
+to respect it more.
+And in a certain way that really says that
+you're respecting your time and attention
+and saying that "I, as much as I load email,
+it's important enough to me that I take it
+a little bit more seriously."
+So one and only one.
+So like I say, last time I say this, this
+may not be your trip.
+Like you're going to have to figure out what
+your--I [INDISTINCT] are actually pretty sound.
+I think 80% of the DNA for most email systems
+is probably somewhere in here.
+But you need to figure this out for yourself.
+You have your own work flow.
+You got your own life.
+You got your own weird peculiar habits you
+picked in college, honor that with my blessing.
+I think one of the most frustrating things
+about the life hacking movement one of the
+things I find most relaxing is the explicit
+idea that acquiring a system is all you need
+to take care of a problem.
+To me this is really not so much more sophisticated
+than thinking that you're going to be more
+organized because you got a PDA.
+Ultimately whatever system I think I happen
+to think the Inbox Zero system is very, I
+think it's pretty intuitive and easy to follow
+but it's meaningless if you don't put it in
+place a whole heart of life hacking comes
+down to one idea in my mind.
+I see idea there's a really smart part of
+your brain there's really dumb part of your
+brain and if you always let the smart part
+of your brain think that it's really smart
+and don't do anything to help the dumb part
+you're going to, you're going to be in a world
+of pain.
+To make the synaptic leap between the dumb
+part and the smart part is what a life hack
+is all about and that's what really what this
+is.
+I haven't shown you anything here that you
+don't already know how to deal but if you
+actually do it you're going to see extraordinary
+differences.
+The way that you have to make this happen
+is you've got, you've got to make it a habit
+you've got to have it be something that you
+do repeatedly otherwise there's really not
+much worth to it at all and I think one of
+those healthy habits in the long run is that
+processing ironically processing on a regular
+as in repeating basis use it time to get out
+of email and go have a life somewhere else.
+So just to kind of put some of these tips
+into perspective and to give you some ways
+to help this stick a couple quick tips.
+I think it's really important to do email
+less and by that I mean don't leave email
+open, do not leave auto check on I know this
+sounds crazy consider turning off your email
+application sometimes and working on other
+stuff.
+If you're in customer service you can't do
+that, if you're in a Korean Missile sylow
+you can't do that.
+If you're the one who, who feeds and grooms
+the page rank you probably can't do that but
+if you're like a normal person who has a job
+there's a pretty good chance that you could
+shut your email off sometimes and let it accumulate
+for awhile while you go at work.
+Have you ever had this happen you go on vacation
+and you come back and you get this 700 emails
+or whatever and it's I'm always dog smack
+by how incredibly stupid most of my email
+is but it seems really important if I got
+a reminder after a minute you know.
+If you leave those--if you leave I think mail
+that out if you leave it in it's default state
+will remind you of new mail every minute.
+That's 2400 interruptions a week so it's worth
+figuring out how many of those interruptions
+you can really tolerate given how important
+the news that we're having Sally's birthday
+at TGI Friday's is to you at a given time.
+I really feel like you wanted to schedule
+email dashes my suggestion to you is that
+you try to check your email once per hour
+and then an hour go and check your email for
+ten straight minutes, process it to zero respond
+what you can, close it up and get back to
+work.
+Maybe that will work for you, maybe if you
+do this every 20 minutes trying to keep yourself
+on a some kind of schedule we're--you're looking
+periodically enough that you're not going
+to lose your mind or have your boss thinks
+you're you know smoking weed under the desk
+but as much as you can try to shut off and
+get away from that.
+One thing that you'll immediately notice is
+that a lot of stuffs seems less like a fire
+than it did when it was coming in all the
+time.
+And while we're at it get off for pay sit,
+get off for news feeds.
+If you haven't new that to check a little
+bit less often go pass through a pass twice
+a day you'll enjoy it more and you'll get
+a lot more done.
+It is totally okay to cheat.
+The first cheat that is awesome it still turning
+if there's any stuff that's coming in I'm
+sure you guys are already doing above the
+list and stuff that you're on but if there's
+stuff that's low level high noise not important
+I don't need to know this now stuff.
+Filter it in such a way that goes into a folder
+as being red keep yourself for a minor to
+go check it ones a day or ones a week or however
+often you need to check it but there's no
+need to be notified of, of noisy stuff and
+there's an only you can filter that stuff
+out which what, what can't you filter you
+can't filter stuff that requires your brain
+to be engage on, on going basis.
+Obviously it's like your primary project your
+not going to be able to filter that be careful
+that you don't over filter which I know gmail
+will let you do.
+It's kind of like if you train spam assassin
+and it starts like throwing out your mom's
+emails you know.
+You got to be careful about how much of this
+you try to automate because you still you
+need your brain engage with a lot of it.
+The other one I don't know I think you kids
+work on a gmail but I love templates.
+I would love to see template functionality
+in gmail.
+I currently use an application for mail got
+out called mail template.
+It makes it really easy to create custom templates
+that you can just respond super fast to email.
+If you start thinking in terms of templates
+you guys are already thinking of templates
+in terms of the way you could things right
+and you reuse libraries and stuff like that
+if you discover that 80% of your email comes
+from the same ten responses consider automating
+that with the template especially for stuff
+outside routine it really speed things up.
+&gt;&gt; Can you make a sample of that?
+&gt;&gt; MANN: Yeah I have a mail template or somebody
+God bless and ask me incredibly obvious question
+about something that's on the site that was
+on the first response first return in Google.
+So I'll go and I'll do the search on Google
+and it goes to my clip board and, and then
+mail template our respond to their email and
+I've got a little international some of the
+phrase to your email but it's got a little
+spot where it drops in whether it was on my
+clipboard.
+So it says, "Dear Jimmy, hey thanks a lot
+for stopping by.
+I think you found what you're looking for
+here."
+And it drops in the clipboard.
+It could be FAQs, could be whatever.
+But it's sort of like, you guys think about
+how you, I'll talk out of my butt for a minute,
+but think of how you refractor code and how
+can you reuse bits of stuff, same thing here.
+If you discover you're answering the same
+thing over and over, try to automate it and
+keep it simple.
+And--and--and the other thing is, you know,
+I know you're like you're whatever, like freaking
+Walt Whitman and everything.
+Every word you write is a dream and you would
+never think of--of boiler plate, but at least
+use it as a jumping off point like consider
+at least having a little core of a one paragraph
+response if it's something you write a lot,
+saves you a lot of time.
+And finally, try not to fiddle.
+Don't be that guy going up and down in the
+inbox just all day long sitting there thinking
+about where you put stuff.
+Try to minimize any kind of activity that
+does not directly support creating and managing
+actions.
+If you're not actually getting that stuff
+done, you're not really doing work.
+You're just playing with email.
+Have you guys ever seen the movie Metropolis,
+the one from the 20s?
+There's this awesome scene at Metropolis where
+this--this ex-German expressionist worker
+man is hooked up to the--the impossible to
+keep up with machine and he has to keep turning
+the arms on his clock and is completely assonates,
+its hilarious, awesome scene.
+I'm here to tell you, you know, if you don't
+want to be doing this whole day long, being
+hooked up in anything, right?
+If you're just doing mete work inside of email,
+you're not really getting stuff done.
+And so I think, as much as possible, it's
+a good idea to just kind of self [INDISTINCT]
+and figure out what are the things I need
+to do that are going to keep me moving this
+stuff and let me create--create little email
+corpses out of these as quickly as possible.
+Try to stay with the program, get out of email
+as often as you can and then just stay focused
+on managing action.
+And let's say periodically just give yourself
+a little check.
+And, you know, remember when you felt guilty
+20 minutes ago when I asked you how your actions
+track to your--things you say are important?
+Try and do that once in a while and really
+say to yourself "Am I putting my time and
+my attention where it should be right now?
+And is there a way that--that I can have this
+email become less noisy for me and generate
+more actions?"
+And the irony, in my opinion is, that if you
+do this well, it actually becomes a little
+bit more like 1993 because you spend less
+time, less [INDISTINCT] what a junkie don't
+care about, and a lot more time doing stuff
+that really matters to you.
+And it's pretty good gig.
+Thanks.
+I deliberately tried to keep that short so
+that I hope we can have a discussion and chat
+and of question, and you can tell me where
+I'm wrong.
+We've got plenty of time.
+I'm just going to stand here until you guys
+ask the question--ask questions, so.
+You can ask questions, you can tell me about
+what it's like to work at the Google and have
+a high volume of email, you could tell me,
+yes sir?
+&gt;&gt; So I really like the idea of only checking
+your email ones every hour, but I think the
+problem is that everyone expects me to be
+checking it ones every 30 seconds.
+And how do you--how do you get other people
+aware that you want to follow a system different
+from the system they expect you to do.
+&gt;&gt; MANN: Yeah.
+It's absolutely the number one--you're right
+on.
+That's the number one response anybody would
+have to that seemingly crazy idea.
+And the truth is that a lot of it's going
+to depend on your teens--well, whoever it
+is you work with a lot.
+It's going to--it's going to have a lot to
+do with how they think about the stuff and
+how the person who's in a position to evaluate
+you, things about that stuff.
+But I think you might be surprised.
+You guys work in cubes, right?
+I mean, do you--did you have to renegotiate
+everyday how loud to play the music and whether
+you should need it to Molly?
+Like you work it out, right?
+Don't you kind of figure out, within your
+own little culture, how that's going to work?
+I think one thing you can do is to say to
+each other--you see this happening now, everybody
+talks about like, "Oh, no email Fridays,"
+and stuff like that.
+Well, I don't know about that, but I do think
+that more and more people are--people are
+having these conversations to at least say,
+"Hey, you know, anybody else feeling like
+our--our news groups have gotten kind of noisy?"
+Anybody else kind of feel like, what if we
+were to say we check email like one day a
+week.
+Lets say we check email when we get in, we
+do a scrum or whatever and then we kind of
+disappear for a couple of hours, who would
+have a problem with that and what can we do
+to work around that?
+It's really up, you know, I--I don't have--there's
+not one answer, but ultimately you're identifying
+the more basic problem.
+You would never call somebody at their house
+at like 9 o'clock on a Sunday night.
+Not when I was a kid.
+It just wasn't done.
+But now, because your email is out there,
+people feel like they have unlimited access
+to you.
+So part of this, I really think, I think we're
+starting to see the pendulum swing back as
+we try and negotiate how much of ourselves
+we want to be available to people all the
+time, and how we maintain our insanity at
+those times when we need to not be getting
+new data, yes sir?
+&gt;&gt; So addressing that the previous point if
+you don't set them at expectation that you
+will answer probably it's amazing how much
+it affects how people try to use the email
+to get in contact with you.
+But my second question is using the inbox
+as a to-do list; I have a tendency to do that
+because I don't have good tools for doing--managing
+a to-do list outside of email.
+And what tools are out there that might actually
+integrate the to-do list with the scheduling
+of the time to do what's on the to-do list.
+&gt;&gt; MANN: I think you're right on.
+And, I mean, I think managing expectations,
+I learn this a long time ago when I was first
+a web designer.
+Back before, we had interaction designer,
+we just have web designers.
+About 20,000 dollars less.
+Really, 216 pillars then, it was a different
+world.
+I--I learned early on because I always--because
+I'm a sad, pathetic person.
+I always want to please people.
+It's how I would way over deliver, way early
+with clients.
+And man, when I ever regret it.
+I think you're absolutely right.
+I think people will take you more seriously
+if you do kind of establish, I mean, part
+of it is, like I say, its team culture.
+I mean, in the same way that people sometimes
+say, "Oh, we got to get a Wiki to help communicate
+better as a team."
+Or like, "We need a new, you know our problem
+is, we need a new CMS."
+And you're like, "No, you need to figure out
+how to talk to each other better."
+Like [INDISTINCT] CMS, then you got two problems,
+you know?
+I think that's--I think that's a big part
+of it.
+To your point about where to put this stuff,
+it's my feeling, and again, I'm just--I'm
+going to come straight at Getting Things Done,
+great book.
+I think the idea of understanding that it's
+all about managing action, it means you take
+it seriously enough that you park actions
+some place special.
+One thing it's important to me, I think is
+the idea that whatever I accept as an action,
+whatever goes on to my list, that could be
+a text file that could be--could be something
+like "remember the milk", it could be to-do
+list, there's a moderate electronic ways,
+could be a [INDISTINCT] skin notebook.
+But whatever it is you put on that list has
+a certain kind of almost magic to it because
+the act of committing that to your page is
+your way of saying "this isn't just a good
+idea, this is something that I'm going to
+do".
+And I think one of the distinctions about
+understanding processing has everything to
+do with task list as well.
+The reason to-do don't work is because there's
+no skin in the game.
+To-do list are great.
+Everybody in here can make a list right now,
+a great to do list because really, most people
+to-do list are about collection, capture,
+about anxiety.
+It's about what's--what's top of mind, right
+now goes on the list.
+Retirement, lumps and all those stuff goes
+on the list, and now you've--you've made a
+list.
+Awesome.
+You made a list.
+And the list could include vacation to Paris,
+pick up milk, buy diapers and its like, "Whoa,
+the content types are crazy here.
+These are all different sizes and shapes."
+The only way to make a task list that really
+means anything, is kind of try to make those
+roughly the same shape, and to make them all
+kind of, have a certain amount of decisiveness
+about it.
+So whatever you use--you know, I think for
+most of you, a text file could be all you
+need.
+One thing about geeks, in my experience, is
+that they don't have a lot of what David Allen
+calls context or a lot of different sets of
+tools and opportunities.
+You know, at computers is pretty much it.
+And so, for a lot of us that could be--that
+could be a text file.
+All I would say is whatever you choose, choose
+the tool that stops just short of being fun
+to use.
+If it's too fun to use, you're going to fiddle
+and you're going to be like the guy with the
+clock, again.
+Like, keep it--keep it to where you kind of
+don't love using it.
+Like--and--and where you don't become so concerned
+with the taxonomy.
+Every time you start thinking about taxonomy,
+go do three tasks, that's all I'm saying.
+I don't know if that answers your question.
+It depends.
+A lot of people--I think it will be great
+thing for Google to make.
+I could totally see this being in a creative
+with a Google calendar at some point.
+I know none of you are in a position to say.
+You can't even tell me how your subversion
+works, I know.
+But I think in the future that would be a
+great thing for Google to add.
+Some kind of task management.
+But, personally, I like something that I can
+take on a plane.
+You know what I mean?
+I don't--the whole like wired thing is problematic
+for me.
+I'm sure you guys got a solution that's going
+to get my personal information.
+But I--I think having--I think there's nothing
+wrong with having a sheet of paper.
+I can't--you would not believe how many friends
+of mine, especially friends I know who work
+here, walk around with a pad of paper, they
+write things down and then they cross it off.
+You got ubiquitous capture, you know?
+You know, the battery has run down.
+I personally carry around a stack of index
+cards to write things down.
+Whatever works for you.
+Yeah.
+But having--having the tasks, the main thing
+is that there's--it's important to be able
+to capture them when they're on your mind
+and I like to say the time that you remember
+that you're out of toilet paper tends not
+to be when you're at Safeway in the toilet
+paper aisle.
+And so, you need a capture device that's going
+to be widely available, but then you don't
+want to have recall at the point when you
+can do something about it, so whatever system
+does that for you--other, where's the mic,
+yeah?
+&gt;&gt; Hi, well, now that you just got done talking
+about how great text files and pieces of paper
+are, I wanted to ask you about your opinion
+on the state of GTD apps, you mentioned omni
+focus which I tried and I didn't really gotten
+too involved with--I can't quite figure it
+out, can you just tell me...
+&gt;&gt; MANN: I'll, I'll put that as a bug.
+&gt;&gt; Thanks, can you just tell me what you think
+about them and what's their value?
+&gt;&gt; MANN: Actually, that's a fantastic question,
+he's asking about the state of GTD apps.
+When I started 43 Folders in 2004, wow, apparently,
+I'm 40.
+There was not much in the way of GTD apps
+especially for Mac users and I kind of at
+the time was very like, there should be GTD
+applications and now brother, are there ever
+GTD applications, so many.
+I think the failing of a lot, not the failing
+but the challenge of GTD is it's if you--I'm
+sorry I need to go on about this for those
+of you who are already sick of GTD which I
+can understand but part of the beauty of GTD
+is that it's such a tool agnostic framework
+and part of the challenge and the wonder of
+GTD is that it's applicable in so many situations.
+I think one problem with a lot of applications
+is that they try too hard to be in all in
+one GTD application and that it especially
+tends to fall down in the review process which
+is the most critical part of keeping GTD working
+on an ongoing basis.
+Just like your filters for email, it shouldn't
+try to do the thinking for you, I would try
+to avoid any GTD application that tries to
+do too much thinking for you.
+I think you want to be looking for an application--this
+isn't--this isn't limited to just GTD, it's
+true for any task management applications.
+You want some--where it's easy to capture
+in a way that's seamless and doesn't require
+you to change modes.
+That I would say that's important.
+You need a way to kind of put it in the--the
+most basic categories that allow you to contextually
+have tasks when you can do something about
+them and you need a way to afford reviews
+and they can't do the review for you and I
+think that's a problem with some of them.
+I was talking with--at lunch today actually,
+about one thing that's neat about Unix.
+I mean as little as I really understand about
+Unix, I do understand the idea of pipes and
+I love the idea that tiny applications can
+do things together and in some cases, I want
+the really sharp paring knife.
+I don't want the goofy Swiss Army knife that
+came out of the bubble gum machine.
+I want the one super freaking, hot, sharp,
+paring knife to do this one thing and that's
+why I think the beauty of this is you can
+do capture on paper, right?
+And you can do task tracking electronically
+and you can do your reviews you know on a
+white board.
+You know whatever works for you in the way
+that whatever compensatory muscles you need
+to develop to keep your--your brain upright,
+you can cobble together a system that will
+do that for you.
+&gt;&gt; Merlin, so if you come back from vacation
+and you have a big pile...
+&gt;&gt; How are you?
+&gt;&gt; Or you know Monday and there's the medium
+sized pile, what's your thinking about the
+order in which you should process the mail,
+should it be you know, chronological or should
+it be alphabetical?
+&gt;&gt; MANN: This is one of those VIE max kind
+of things because there's--the connection
+of wisdom is you cherry pick for the stuff
+that's highest priority and there's nothing
+I can say to you that will keep you from doing
+that because that's how our brain works and
+you guys are all smarter than me, I can't
+talk you out to that but as much as possible,
+I think I try to go latest to most recent
+in order and I think once you made the--the
+psychic leap from "I have to respond to all
+of these" to "I have to process these," that
+becomes less painful because once you become
+a total ninja at processing and this is where
+something like mud or something becomes you
+know, if you can get key commands for doing
+these kinds of tasks, it's a hugely helpful.
+Mail acton for mail bot app great for stuff
+like this.
+That ability to just blaze through it really
+quickly, you--you've taken down the ramp up
+to that, right?
+Because ordinarily you feel like, "Oh gosh,
+it's Monday, I got to go run and put out my
+fires," but you can do that but as long as
+you don't do it to the exclusion of the other
+stuff, how you do it?
+&gt;&gt; So I think I try and get rid of the junk
+first and then see what's left.
+&gt;&gt; MANN: I think that's brilliant, I think
+that...
+&gt;&gt; Thanks.
+&gt;&gt; MANN: I think that--no--but I think and
+I'll tell you why.
+Sure, it's funny but the--what we're doing
+is a pattern and you say [INDISTINCT] junk
+you know duh, that's a pattern that you can
+extend a long way, that pattern of "Okay,
+this is--I immediately see that this is stuff
+I can get rid of," taking that and extending
+that to okay and here's stuff that I don't
+need to do now that I can do later or here's
+things that I know I need to do this about
+but you're making this very fast "in the moment"
+decisions and once you get good at this stuff
+indicating, you should--any of those five
+steps should come to you very quickly because
+you know where it goes.
+Deleting these because you know it just goes
+away.
+If you can't make decisions as quickly as
+you delete it's because you don't know where
+stuff should go and that's the missing part
+in your system maybe.
+Yes, you sir?
+&gt;&gt; So in related question.
+If you're a very bad boy and you have a large
+inbox dating back how many months, what would
+you do if you find yourself in such a situation,
+including what letters from friends and you
+feel really guilty for not [INDISTINCT]?
+&gt;&gt; MANN: So, hypothetically--hypothetically,
+if you have been letting--I'm assuming this
+is a live email compose check all the time.
+Okay.
+There is a difference between like versus
+like having email checks accounts you only
+check periodically, but if it's something
+where that's--that intuition has been happening
+overtime and it's been a piling up, piling
+up, piling up.
+I'll tell you the very first thing I would
+do; I ask--I tell people to create something
+that I call the email DMZ.
+So the first thing you need to do is to stop
+sucking.
+Like before you get good, you have to stop
+sucking.
+So first of all, go make a folder called DMZ
+and drag everyone of those emails into that
+folder and then stop doing that.
+That's my first thing.
+Do you follow what I'm saying?
+&gt;&gt; Yeah.
+&gt;&gt; MANN: It's like--and so--but I see other
+people go like, "Well--well, yeah, but I still
+got all that email."
+I'm like, "Yeah, but if you had done that
+six months ago, you would have six months
+less of stuff that had piled up."
+So number one, clear out your inbox.
+Give yourself a fresh start and put that into
+a folder.
+You still have to go through all that email
+which you can do in dashes.
+That's the first thing that I would do.
+You could--there's a lot--been a lot of talk
+lately about email bankruptcy and the idea
+of basically bccing everybody you know and
+saying, "That's it new dealer, I'm done."
+If it's really important call me.
+So you suck it.
+I'm out of here.
+I--that's hard to do and I know a company
+that will probably really hard to do.
+But I think--no, seriously, I think--I think
+it helps to give yours--I mean, how can I
+put this?
+You--if it was easy for you to answer those,
+you already would have answered them.
+If that was something that you could do and
+in your head, if that's something you can
+do in five minutes, you already would have
+done it.
+You got to be honest with yourself.
+You don't get an empty inbox by living a lie.
+You got to start by being really honest with
+yourself.
+So, if you know you'll never going to respond
+to some email, even if it's somebody that
+you love, love, love, delete it.
+What are you going to do instead?
+Keep it for six months and then delete it?
+Oh, well that's awesome, that--they probably
+feel great, you know?
+If you're going to answer, answer it now.
+I mean, aren't we in a get all like Kung Fu
+on?
+You [INDISTINCT] I mean?
+Like that's what you got to do.
+And, I mean, what you could do, I mean there's
+all kinds--this is how pathetic I am.
+There's all of little tricks you could do.
+Like you could go in there and--and take it
+from a slightly different point of view and
+say, "Of the people in here, all those friends
+and all those babies that have been born and
+all those birthdays that went by, what would
+make me feel great?
+Which one of these people would I actually
+really like to connect with?"
+So, instead of thinking of it as this deficit
+that makes you feel terrible, try to think
+of it as like "if I could reach out to one
+person and feel really energized by writing
+to them" start there.
+Yes, hey?
+&gt;&gt; So one of the issues that many of us here
+have is, it seems like your system would work
+really well on a personal account, but with
+a work account, frequently, somebody will
+email your team.
+And now there are, you know, maybe 20 people
+that could respond to this issue, so you might
+look at the email and you might say, "Well,
+I could respond or I could wait for one of
+the other 20 people to respond."
+&gt;&gt; MANN: Right.
+&gt;&gt; And so you ignore it for an hour or two,
+and then you come back to it later and you
+say, "Oh, did anyone respond yet?
+Maybe.
+Do I want to respond now?"
+So do you have any suggestions for playing
+this little waiting game with your teammates?
+&gt;&gt; MANN: Well, yeah.
+Two things--well, first of all it's a trick
+question because, you know, it's--that a--if
+that's--if the practice of your group is to
+have stuff generically go out to 20 people
+and hope someone takes care of it.
+There's--there's a part of that workflow that
+makes me think that could probably tuned a
+little bit.
+I would suggest something like bug tracking
+or something like that.
+But, no--but seriously, I mean, you're right.
+I mean--but--how can I put this?
+I mean, my friend [INDISTINCT] talks about
+this all the time.
+You know, people come in, they come to you,
+they go, "Oh, we got to get a CMS, we've got
+to get to this, we've got to get to that.
+Here's this thing I read about in the in flight
+magazine, it's going to make our company really
+great."
+And, you know, the trouble is, the technology
+is going to do your bidding, but it's not
+going to fix communication problems or broken
+practices.
+That said, there are ways that you could probably
+do it, is there to tend to be one or two people
+that actually do the work or does it get widely
+distributed?
+That went out to 20 people...
+&gt;&gt; [INDISTINCT] whoever can answer the question
+the answer is sometimes.
+&gt;&gt; MANN: Right.
+And so you see if they--when they respond
+to that, that could cc everybody in the group
+and you would know that they got answered.
+Huh, so the whole time you--you're just kind
+of sitting there, going like--who's it going
+to be?
+Wow, that's wow, um, it's a good question
+I mean I--that's sound like a kind of a practice
+that you guys could talk--seems like you could
+talk a little bit to--to clean that up a little
+bit but I don't--I mean I--I would have to
+think something like bug tracking would be
+better for something like that but--but it--it
+gives me chance to say one thing, there are
+some problems that can't be fixed by email
+and there are some problems where email--how
+can I put this?
+Email--you know, is just the canary in the
+coal mine.
+You feel the pain in that place, um, in the
+inbox--by the way, you can read more about
+the stuff at InboxZero.com it redirects to
+a 43 Folders series that contains a bunch
+of this crap.
+But what you do if somebody who keeps sending
+you junk, for example?
+This is--I mean in some ways, this is somewhat
+related to that, like you get the--the aunt
+that keep sending you the--the urban myths
+and, uh, $200 cookie and all that stuff and
+you just keep sending them the snoop's links
+but they keep sending you--you know, the stuff.
+There's some stuff where you've really just
+got--you either got prank mail them, or you
+got to talk to them.
+So, I don't know--I mean I guess I feel like
+there's all kinds of problems that--that you
+could at least start to say, "Hey, does anybody
+else that see that said something that we
+could work on?"
+I don't know, what--what do you guys think?
+Is this--is that--what he's describing is
+a big Google wide problem?
+&gt;&gt; Yeah.
+&gt;&gt; Yeah, you know, it's like the FBI too.
+People are shooting this entire thing, this
+is all being recorded.
+Yeah, seriously but that is--is that a widespread
+problem?
+Not knowing who's going to handle something
+sent to distribution.
+Who's got the best solution for it here?
+Yeah?
+&gt;&gt; I still just do like recommending it just
+[INDISTINCT] with less response, just do it
+and if not, really able to feel responsible
+and then when you get around to it, when you
+have time to actually send the folder, maybe
+somebody has already responded and you have
+nothing to do it or memorizes your number.
+&gt;&gt; Does it--does getting good about responding
+to that harm you in the long run?
+Do you become to go-to person and is that
+a good thing or a bad thing?
+&gt;&gt; Well, the problem with responding like
+immediately, it seems that it's--it's--then
+the person who send the email gets pretty
+responses all simultaneously and...
+&gt;&gt; Right.
+&gt;&gt; So this all will be sent to you.
+So, there is some advantage to waiting just...
+&gt;&gt; See what happens.
+&gt;&gt; To--to prevent every one from responding
+simultaneously?
+&gt;&gt; Yeah.
+&gt;&gt; When I--when I had worked [INDISTINCT]
+four or five days and everyday it's missing
+a one.
+I do not answer but we just direct other things
+to answer and they didn't have time to be
+able to answer or have it all and so we don't--you're
+not doing all the work by yourself.
+What the others do because they made it to
+the wrong guy, they would tell you and you
+have to change and so--so everyone gets to
+know that you [INDISTINCT]
+&gt;&gt; So, it becomes a little bit like reverse
+office hours like there's--like you a time
+when you're not responding?
+&gt;&gt; Some of it [INDISTINCT] usually it goes
+to manager to answer these things and, uh,
+if--at Google point, there is no manager at
+fault because how can do that, it's 52,000
+[INDISTINCT] yeah that it would seems you
+have to do it and on all they did all to there
+best as well to manage.
+&gt;&gt; Oh, did, I'm--I'm interested hearing more
+about that--that's I think--that's--I think
+that's--that's a very--that's a tough question.
+And--and I'm just curious though I--I guess
+sometimes you guys try to--try to squash the
+myth but so show--show of hands, emails that
+come from a Google address that you receive
+everyday in your estimation, 100?
+&gt;&gt; Close--closer than that.
+&gt;&gt; Well, like you come in you turn on your
+computer, if you had nothing in place--how
+many Google emails would be in your inbox?
+Can somebody toss out--how much, 200?
+&gt;&gt; Five hundred.
+&gt;&gt; Five hundred.
+Can anybody more than 500?
+So, if this [INDISTINCT] is more than 500--some
+of you are getting more than 500 emails?
+&gt;&gt; Emails and conversation.
+&gt;&gt; Yeah, just write anonymous.
+&gt;&gt; Whatever helps, uh, if I, man I--I would
+really want to ask what I get out if people
+get 600 emails a day and how much, um, how
+many of them are actionable?
+What percentage of your emails are actionable--require
+you to do something other than read them and
+file them?
+&gt;&gt; Two and to one percent.
+&gt;&gt; Just 5%.
+&gt;&gt; One to 5%--2%?
+Hey, how's it going?
+Um, wow, that's--that's extraordinary if I
+was--if I was Mr. Google, I would--I would
+want to ask a lot of questions, that's extraordinary.
+Well, more question--yeah?
+&gt;&gt; Um, actually just an announcement but not
+to finish the questions many of you know this
+but I wanted to mention that we do bring the
+David Allen Company here to do "Getting Things
+Done" courses on a regular basis so if any
+of you have not taken it or you studied GTD
+before and you want a refresher, you're absolutely
+welcome to enroll a class.
+In fact, we have them going this Thursday
+and Friday, I know it's last minute but we
+do have some seats--it's a one day class,
+we offer it across two half days.
+So, two morning sessions or two afternoon,
+you can enroll by going to go/gtdw, so, just
+wanted to mention that.
+&gt;&gt; That's awesome, yeah, that's great.
+I knew Ev took his--took the barter team to
+that a while back, uh, I think it's--I mean
+not, this is--I guess this is a plug so I'll
+call it a plug.
+That's a heck of a seminar.
+It's funny one thing people always ask is
+how do you--how do you GTD on teens.
+The truth is it can be pretty hard to like
+make anybody do anything like that but it's
+kind of this object oriented, productivity
+approach where if everybody has responsible--there
+are little black boxes responsible about input
+and output--it kind of makes things little
+healthier, that's cool if you do that.
+We've probably got time for one more question?
+Anybody else and I'll hang around after if
+anybody wants to say yeah or whatever but--one
+more question?
+Come on, make me feel good, ask a question--yeah.
+&gt;&gt; All right, see, I was [INDISTINCT] to make
+a day here if I didn't ask it.
+So, [INDISTINCT] maybe I am but my problem
+with my mailbox is just--to like just bother
+checking every single email like literally
+clicking the box is more pain than I can bear
+and I think the problem we have at Google
+is that you're on--we don't have like--we
+have an internal RssReader but a lot of stuff
+probably could be on blogs like we're just
+used to doing it on mailing list since your
+mailing list are kind of notice knowledge
+archive, firehost type thing?
+&gt;&gt; Yeah.
+&gt;&gt; So, do you have any techniques for dealing
+with like the knowledge firehost that...
+&gt;&gt; Yeah.
+&gt;&gt; ...you know, proxies for?
+&gt;&gt; That's--that's really interesting that
+you--you--as you were speaking I started to
+think there was, uh, there was an article
+I read in kind of early 90's that was comparing--talking
+about Macs and Windows, I guess it was mid
+90's.
+Comparing Macs and Windows and saying that
+Windows was very Protestant and Mac was very
+Catholic, it seems like you need almost like
+an information priest, you need--it sounds
+like for--some of these problems you need
+sectional representatives who are helping
+to digest this and then share the really relevant
+parts of it.
+If there are stuff where not everybody needs
+to know about it--yeah, that's a firehost,
+that's crazy and again I mean blaming email
+is--you know, that's just kind of blaming
+the messenger, it sounds like that's one thing
+that might be helpful but go ahead...
+&gt;&gt; I just wanted to say--sometimes I've thought
+that Google relies on randomness to make sure
+the information gets to the right person.
+It's kind of like redundant random graph and
+like it might or might not flow--you hope
+for the best.
+&gt;&gt; Really?
+So, like they just--they just throw it all
+out there and it kind of hope it sticks.
+&gt;&gt; Well, like your talking to somebody at
+lunch and they're like, "Oh, you're doing
+that project, have you heard the person in
+New York who's doing a very similar project?''
+No--no, I haven't.
+&gt;&gt; Well, Google, home of the random information
+spotter.
+Hey, so I have been Merlin and this has been
+Inbox Zero and thank you very much to--to
+Dick in particular for having me in today.
+Thanks to everybody, you all hung out--thank
+you.

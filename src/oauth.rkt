@@ -81,6 +81,10 @@
   ;; Use simple-oauth2's redirect server infrastructure
   (define response-channel (record-auth-request state))
   
+  ;; Give the server a moment to start accepting connections
+  (displayln "Starting OAuth redirect server...")
+  (sleep 1)
+  
   ;; Open browser
   (displayln "Opening browser...")
   (system (format "xdg-open '~a' 2>/dev/null || open '~a' 2>/dev/null || start '~a' 2>NUL" 
@@ -124,19 +128,31 @@
 
 ;; Get current access token (refresh if needed)
 (define (get-gmail-token)
-  (let ([user-name (get-current-user-name)]
-        [stored-token (get-token (get-current-user-name) "gmail")])
+  (let ([user-name (get-current-user-name)])
+    (define stored-token
+      (with-handlers ([exn:fail? (λ (e)
+                                   (displayln "⚠ Token decryption failed (corrupted token file)")
+                                   (displayln (format "  Error: ~a" (exn-message e)))
+                                   (displayln "  Automatically re-authorizing...")
+                                   #f)])
+        (get-token user-name "gmail")))
+    
     (if stored-token
         ;; Check if expired and refresh if needed
         (if (token-expired? stored-token)
-            (let ([refreshed (refresh-token (make-gmail-client) stored-token)])
+            (with-handlers ([exn:fail? (λ (e)
+                                         (displayln "⚠ Token refresh failed")
+                                         (displayln (format "  Error: ~a" (exn-message e)))
+                                         (displayln "  Automatically re-authorizing...")
+                                         (authorize-gmail))])
               (displayln "Access token expired, refreshing...")
+              (define refreshed (refresh-token (make-gmail-client) stored-token))
               (set-token! user-name "gmail" refreshed)
               (save-tokens)  ; Persist refreshed token
               refreshed)
             stored-token)
         (begin
-          (displayln "No stored token found. Please authorize first.")
+          (displayln "No stored token found. Authorizing...")
           (authorize-gmail)))))
 
 ;; Make authenticated Gmail API request

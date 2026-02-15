@@ -3,6 +3,7 @@
 ;; LLM-based email processing with Claude API tool calling
 
 (require "gmail.rkt"
+         "label-utils.rkt"
          json
          net/url
          net/http-easy)
@@ -15,8 +16,8 @@
 ;; ============================================================================
 
 (define CLAUDE-API-URL "https://api.anthropic.com/v1/messages")
-(define CLAUDE-MODEL "claude-sonnet-4-20250514")  ; Sonnet 4.5
-(define CLAUDE-MODEL-HAIKU "claude-3-5-haiku-20241022")  ; Haiku 4.5 fallback
+(define CLAUDE-MODEL "claude-sonnet-4-5")  ; Sonnet 4.5
+(define CLAUDE-MODEL-HAIKU "claude-haiku-4-5")  ; Haiku 4.5 fallback
 (define ANTHROPIC-API-KEY (getenv "ANTHROPIC_API_KEY"))
 
 (unless ANTHROPIC-API-KEY
@@ -135,13 +136,9 @@
   ;; For apply_label, show the transformed label name
   (when (equal? tool-name "apply_label")
     (define raw-label-name (hash-ref tool-input 'label_name))
-    (define label-name
-      (if (or (string-prefix? raw-label-name "Schemail/")
-              (string-prefix? raw-label-name "schemail/"))
-          raw-label-name
-          (string-append "Schemail/" (string-titlecase raw-label-name))))
-    (displayln (format "  → Will apply: ~a (model suggested: ~a)" 
-                      label-name raw-label-name)))
+    (define content-label (string-titlecase raw-label-name))
+    (displayln (format "  → Will apply: ~a + Schemail (marker)" content-label))
+    (displayln (format "  → Model suggested: ~a" raw-label-name)))
   
   (when dry-run?
     (displayln "  [DRY RUN - not executing]")
@@ -152,43 +149,18 @@
       ["apply_label"
        (define raw-label-name (hash-ref tool-input 'label_name))
        
-        ;; Add Schemail/ prefix (capitalized) if not already present
-        (define label-name
-          (if (or (string-prefix? raw-label-name "Schemail/")
-                  (string-prefix? raw-label-name "schemail/"))
-              raw-label-name
-              (string-append "Schemail/" (string-titlecase raw-label-name))))
+       ;; Normalize label name (flat structure with proper formatting)
+       (define content-label (normalize-label raw-label-name))
+       (displayln (format "  → Applying label: ~a" content-label))
        
-       (displayln (format "  → Applying label: ~a" label-name))
+       ;; Ensure Schemail marker exists and is hidden
+       (define schemail-marker-id (ensure-schemail-marker))
        
-        ;; Ensure parent label exists (for proper nesting)
-        (when (string-contains? label-name "/")
-          (define parent-name (car (string-split label-name "/")))
-          (define parent-id (gmail-find-label-by-name parent-name))
-          (unless parent-id
-            (displayln (format "  → Creating parent label: ~a" parent-name))
-            (gmail-create-label parent-name)))
-        
-        ;; Find or create child label
-        (define label-id (gmail-find-label-by-name label-name))
-        (unless label-id
-          (displayln (format "  → Creating label: ~a" label-name))
-          (define new-label (gmail-create-label label-name))
-          (set! label-id (hash-ref new-label 'id)))
-       
-       ;; Apply label
-       (gmail-modify-message message-id #:add-labels (list label-id))
-       (displayln "  ✓ Label applied")
-       
-       ;; Auto-archive: any schemail/ label means it's automated
-       (displayln "  → Auto-archiving (schemail/ label detected)")
-       (gmail-modify-message message-id #:remove-labels '("INBOX"))
-       (displayln "  ✓ Archived")]
+       ;; Apply content label + Schemail marker
+       (apply-content-and-marker-labels message-id content-label schemail-marker-id)]
       
       ["archive_email"
-       (displayln "  → Archiving email (removing from INBOX)")
-       (gmail-modify-message message-id #:remove-labels '("INBOX"))
-       (displayln "  ✓ Archived")]
+       (archive-message message-id)]
       
       ["star_email"
        (displayln "  → Starring email")

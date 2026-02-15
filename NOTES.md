@@ -1,5 +1,40 @@
 # Design Notes
 
+## Classifier Experiments
+
+See [`notes/classifier-experiments.md`](notes/classifier-experiments.md) for detailed observations from testing different classifier prompt experiments.
+
+**Key Finding (Experiment 1):** Blank slate approach generates high label granularity (10 emails → 10 labels), but archiving accuracy is excellent (100%). Question: Is label proliferation a problem or a feature?
+
+---
+
+## Code Organization
+
+### Label Utilities Refactoring (2026-02-15)
+
+**Problem:** ~50 lines of label handling logic duplicated between `llm.rkt` and `llm-classifier.rkt`, leading to inconsistent bug fixes.
+
+**Solution:** Extracted shared functionality to `src/label-utils.rkt`:
+
+- `normalize-label` - Handles label normalization (split on `/`, titlecase, replace non-alphanumeric with spaces)
+- `ensure-schemail-marker` - Creates/hides the Schemail marker label, returns ID
+- `ensure-label-hierarchy` - Creates parent labels for hierarchical labels (e.g., `Newsletter/Marketing`)
+- `apply-content-and-marker-labels` - Applies both content label and Schemail marker
+- `archive-message` - Archives message (removes from INBOX)
+
+**Benefits:**
+- Single source of truth for label operations
+- Easier to maintain and test
+- Prevents inconsistencies between classifier modes
+- Reduced code size (~100 lines → ~50 lines of logic)
+
+**Files modified:**
+- Created: `src/label-utils.rkt` (new shared module)
+- Updated: `src/llm-classifier.rkt` (now uses label-utils)
+- Updated: `src/llm.rkt` (now uses label-utils)
+
+---
+
 ## LLM Integration Approaches
 
 Three architectural approaches for LLM-based email filtering, from simplest to most flexible.

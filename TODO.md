@@ -139,12 +139,26 @@
 
 ## Phase 6: Nice-to-Have
 
+### Classifier Improvements
+- [ ] **Label Consolidation:** Feed existing labels to classifier to encourage reuse
+  - Current issue: Model creates hyper-specific labels (e.g., `Dmv Mdl Confirmation`)
+  - Both Experiment 1 and 2 show 10 emails → 10 labels (100% proliferation)
+  - Potential solution: Include list of existing labels in prompt with instruction to reuse when appropriate
+  - Test this after Experiment 3 completes
+
 ### Advanced Features
 - [ ] Filter conditions beyond LLM (sender whitelist, regex, etc.)
 - [ ] Dry-run mode (show what would happen without doing it)
 - [ ] Web UI for viewing logs/stats
 - [ ] Email preview before applying actions
 - [ ] Undo/revert actions
+
+### Label System
+- [x] **Simplified to flat labels:** Using `Receipt`, `Newsletter`, etc. (no `Schemail/` prefix)
+  - Hidden `Schemail` marker label for "processed" queries
+  - Both labels applied together: content label + marker
+  - Benefits: Clean UI, easy colors, Inbox Zero aesthetic
+  - See: notes/label-structure.md for design rationale
 
 ### Performance
 - [ ] Parallel email processing (future/promises in Racket)

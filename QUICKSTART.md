@@ -43,19 +43,18 @@ The system will:
 
 ## How It Works
 
-### Example Email Categories
+### Label Structure
 
-**1. "action"** - Important emails from real people
-- Personal emails, business inquiries, investor outreach
-- **Claude's actions:** Label "action", leave in inbox
+**Flat labels + hidden marker:**
+- Content labels: `Receipt`, `Newsletter`, `Shipping` (visible, colorful)
+- Hidden marker: `Schemail` (marks as processed, hidden from sidebar)
+- Both applied together automatically
 
-**2. "notification"** - Automated messages  
-- LinkedIn notifications, receipts, shipping updates, banking alerts
-- **Claude's actions:** Label "notification", archive, mark read
-
-**3. "recruiter"** - Job opportunities
-- Recruiting pitches mentioning "opportunity", "role", "hiring"
-- **Claude's actions:** Label "recruiter", archive
+**Example classifications:**
+- Receipt from Anthropic → `Receipt` + `Schemail` (archived)
+- Newsletter from NYTimes → `Newsletter` + `Schemail` (archived)
+- Shipping from Amazon → `Shipping` + `Schemail` (archived)
+- Email from human → `Action` + `Schemail` (stays in inbox)
 
 ### High-Level Instructions
 

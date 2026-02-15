@@ -78,14 +78,26 @@
 (define (gmail-update-label label-id
                             #:label-list-visibility [label-list-visibility #f]
                             #:message-list-visibility [message-list-visibility #f]
-                            #:name [name #f])
+                            #:name [name #f]
+                            #:background-color [background-color #f]
+                            #:text-color [text-color #f])
   (define data (make-hash))
   (when label-list-visibility (hash-set! data 'labelListVisibility label-list-visibility))
   (when message-list-visibility (hash-set! data 'messageListVisibility message-list-visibility))
   (when name (hash-set! data 'name name))
+  (when (or background-color text-color)
+    (define color-data (make-hash))
+    (when background-color (hash-set! color-data 'backgroundColor background-color))
+    (when text-color (hash-set! color-data 'textColor text-color))
+    (hash-set! data 'color color-data))
   (gmail-api-request (format "labels/~a" label-id)
                      #:method "PATCH"
                      #:data (jsexpr->string data)))
+
+;; Delete a label
+(define (gmail-delete-label label-id)
+  (gmail-api-request (format "labels/~a" label-id)
+                     #:method "DELETE"))
 
 ;; ============================================================================
 ;; Helpers
@@ -130,6 +142,7 @@
          gmail-get-label
          gmail-create-label
          gmail-update-label
+         gmail-delete-label
          gmail-find-label-by-name
          message-subject
          message-from

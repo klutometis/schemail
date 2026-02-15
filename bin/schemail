@@ -6,8 +6,12 @@
 (require "../src/oauth.rkt"
          "../src/gmail.rkt"
          "../src/filters.rkt"
+         "../src/llm-classifier.rkt"
+         "../src/label-colors.rkt"
          "../config/filters.rkt"
-         "../config/preferences.rkt")
+         "../config/preferences.rkt"
+         "../config/classifier-prompts.rkt"
+         "../config/schemail.rkt")
 
 ;; ============================================================================
 ;; CLI Argument Parsing
@@ -33,15 +37,23 @@ PROCESS OPTIONS:
   --unread                  Process only unread emails
   --since DATE              Process emails since date (YYYY-MM-DD)
   --until DATE              Process emails until date (YYYY-MM-DD)
-  --query \"QUERY\"           Custom Gmail query
+  --query QUERY             Custom Gmail query
+                            Default: in:inbox -label:Schemail (unprocessed only)
   
   --filter STRATEGY         Filter strategy to use (default: hybrid)
                             Options: hybrid, pure-llm, selective-llm
   
+  --classifier EXPERIMENT   Use structured classifier instead of filters
+                            Options: experiment-1, experiment-2, experiment-3
+  
+  --color-scheme SCHEME     Color scheme for labels (overrides config)
+                            Options: set1, muted, bright, rainbow, none
+                            Applies colors at end of process run
+  
   --execute                 Actually execute actions (default: dry-run)
   --dry-run                 Only show what would happen (default)
   
-  --skip-processed          Skip emails already labeled with Schemail/*
+  --include-processed       Include already-processed emails (has Schemail label)
   --interactive             Interactively review each email
   --verbose                 Show detailed output
 
@@ -52,6 +64,12 @@ DAEMON OPTIONS:
 LABELS OPTIONS:
   hide-except PREFIX        Hide all labels except those starting with PREFIX
                             Example: schemail labels hide-except Schemail
+  
+  assign-colors             Apply color scheme to all user labels
+                            Uses scheme from config or --color-scheme flag
+  
+  cleanup                   Delete all experiment labels (keeps excluded labels)
+                            Useful for cleaning up between experiments
 
 EXAMPLES:
   # Dry-run on last 10 emails (safe)
@@ -59,6 +77,14 @@ EXAMPLES:
   
   # Actually process last 50 emails with hybrid strategy
   schemail process --last 50 --filter hybrid --execute
+  
+  # Test structured classifier experiments (on unprocessed emails)
+  schemail process --last 50 --classifier experiment-1
+  schemail process --last 50 --classifier experiment-2
+  schemail process --last 50 --classifier experiment-3
+  
+  # Reprocess all emails (including already processed)
+  schemail process --last 50 --classifier experiment-1 --include-processed
   
   # Process unread emails only
   schemail process --unread --execute
@@ -77,6 +103,12 @@ FILTER STRATEGIES:
   pure-llm     - LLM processes every email (slow, expensive)
   selective-llm - Pattern matching first, LLM only for ambiguous cases
 
+LABEL STRUCTURE:
+  - Flat labels: Receipt, Newsletter, Shipping (visible, colorful)
+  - Hidden marker: Schemail (marks email as processed, hidden from sidebar)
+  - Both applied together by model
+  - Query -label:Schemail finds unprocessed emails
+
 NOTES:
   - Default mode is DRY-RUN for safety
   - Use --execute to actually modify emails
@@ -92,6 +124,7 @@ NOTES:
   (hash-set! options 'last 10)
   (hash-set! options 'dry-run? #t)
   (hash-set! options 'filter 'hybrid)
+  (hash-set! options 'classifier #f)
   (hash-set! options 'unread? #f)
   (hash-set! options 'interactive? #f)
   (hash-set! options 'verbose? #f)
@@ -99,7 +132,8 @@ NOTES:
   (hash-set! options 'query #f)
   (hash-set! options 'since #f)
   (hash-set! options 'until #f)
-  (hash-set! options 'skip-processed? #f)
+  (hash-set! options 'include-processed? #f)
+  (hash-set! options 'color-scheme #f)
   
   (let loop ([args args])
     (match args
@@ -121,6 +155,12 @@ NOTES:
        (hash-set! options 'command 'labels-hide-except)
        (hash-set! options 'label-prefix prefix)
        (loop rest)]
+      [(list "labels" "assign-colors" rest ...)
+       (hash-set! options 'command 'labels-assign-colors)
+       (loop rest)]
+      [(list "labels" "cleanup" rest ...)
+       (hash-set! options 'command 'labels-cleanup)
+       (loop rest)]
       
       ;; Options
       [(list "--last" n rest ...)
@@ -141,6 +181,13 @@ NOTES:
       [(list "--filter" strategy rest ...)
        (hash-set! options 'filter (string->symbol strategy))
        (loop rest)]
+      [(list "--classifier" experiment rest ...)
+       (hash-set! options 'classifier (string->symbol experiment))
+       (loop rest)]
+      [(list "--color-scheme" scheme rest ...)
+       (define scheme-sym (string->symbol scheme))
+       (hash-set! options 'color-scheme (if (eq? scheme-sym 'none) #f scheme-sym))
+       (loop rest)]
       [(list "--execute" rest ...)
        (hash-set! options 'dry-run? #f)
        (loop rest)]
@@ -150,8 +197,8 @@ NOTES:
       [(list "--interactive" rest ...)
        (hash-set! options 'interactive? #t)
        (loop rest)]
-      [(list "--skip-processed" rest ...)
-       (hash-set! options 'skip-processed? #t)
+      [(list "--include-processed" rest ...)
+       (hash-set! options 'include-processed? #t)
        (loop rest)]
       [(list "--verbose" rest ...)
        (hash-set! options 'verbose? #t)
@@ -179,30 +226,48 @@ NOTES:
   
   (define dry-run? (hash-ref options 'dry-run?))
   (define filter-strategy (hash-ref options 'filter))
+  (define classifier-experiment (hash-ref options 'classifier))
   (define last-n (hash-ref options 'last))
   (define unread? (hash-ref options 'unread?))
-  (define query (hash-ref options 'query))
+  (define user-query (hash-ref options 'query))
   (define since (hash-ref options 'since))
   (define until (hash-ref options 'until))
   (define interactive? (hash-ref options 'interactive?))
+  (define include-processed? (hash-ref options 'include-processed?))
   
   (displayln (format "Mode: ~a" (if dry-run? "DRY-RUN (safe)" "LIVE (will modify emails)")))
-  (displayln (format "Filter Strategy: ~a" filter-strategy))
+  (if classifier-experiment
+      (displayln (format "Classifier: ~a" classifier-experiment))
+      (displayln (format "Filter Strategy: ~a" filter-strategy)))
   (displayln "")
   
   ;; Get Gmail token (will authorize if needed)
   (get-gmail-token)
   
   ;; Build Gmail query
-  (define skip-processed? (hash-ref options 'skip-processed?))
+  ;; Default: only unprocessed emails (no Schemail label)
   (define gmail-query
     (cond
-      [query query]
-      [unread? "is:unread"]
-      [(and since until) (format "after:~a before:~a" since until)]
-      [since (format "after:~a" since)]
-      [until (format "before:~a" until)]
-      [else #f]))
+      ;; User provided explicit query - use as-is
+      [user-query user-query]
+      ;; User wants processed emails included
+      [include-processed?
+       (cond
+         [unread? "is:unread"]
+         [(and since until) (format "after:~a before:~a" since until)]
+         [since (format "after:~a" since)]
+         [until (format "before:~a" until)]
+         [else #f])]
+      ;; Default: exclude processed emails
+      [else
+       (define base-query
+         (cond
+           [unread? "is:unread -label:Schemail"]
+           [(and since until) (format "after:~a before:~a -label:Schemail" since until)]
+           [since (format "after:~a -label:Schemail" since)]
+           [until (format "before:~a -label:Schemail" until)]
+           [else "in:inbox -label:Schemail"]))
+       base-query]))
   
   ;; Fetch messages
   (displayln (format "Fetching ~a emails~a..."
@@ -223,16 +288,29 @@ NOTES:
   
   (displayln (format "Found ~a message(s)\n" (length message-ids)))
   
-  ;; Select filter strategy
+  ;; Get classifier prompt if using classifier mode
+  (define classifier-prompt
+    (and classifier-experiment
+         (match classifier-experiment
+           ['experiment-1 experiment-1-prompt]
+           ['experiment-2 experiment-2-prompt]
+           ['experiment-3 experiment-3-prompt]
+           [else 
+            (displayln (format "Unknown classifier experiment: ~a" classifier-experiment))
+            (displayln "Valid options: experiment-1, experiment-2, experiment-3")
+            (exit 1)])))
+  
+  ;; Select filter strategy (if not using classifier)
   (define filters
-    (match filter-strategy
-      ['hybrid filters-hybrid]
-      ['pure-llm filters-pure-llm]
-      ['selective-llm filters-selective-llm]
-      [else 
-       (displayln (format "Unknown filter strategy: ~a" filter-strategy))
-       (displayln "Using hybrid strategy instead.")
-       filters-hybrid]))
+    (and (not classifier-experiment)
+         (match filter-strategy
+           ['hybrid filters-hybrid]
+           ['pure-llm filters-pure-llm]
+           ['selective-llm filters-selective-llm]
+           [else 
+            (displayln (format "Unknown filter strategy: ~a" filter-strategy))
+            (displayln "Using hybrid strategy instead.")
+            filters-hybrid])))
   
   ;; Process each message
   (for ([id message-ids]
@@ -243,35 +321,33 @@ NOTES:
     
     (define msg (gmail-get-message id))
     
-    ;; Check if already processed (has any Schemail/* label)
-    (define already-processed?
-      (and skip-processed?
-           (let ([labels (hash-ref msg 'labelIds '())])
-             (for/or ([label-id labels])
-               ;; Get label name and check if it starts with Schemail/
-               (define label-info (gmail-get-label label-id))
-               (define label-name (hash-ref label-info 'name ""))
-               (string-prefix? label-name "Schemail/")))))
-    
-    (when already-processed?
-      (displayln "  ⊘ Skipping - already processed (has Schemail/* label)"))
-    
+    ;; Interactive mode: ask before processing
     (define should-process?
-      (and (not already-processed?)
-           (if interactive?
-               (let ()
-                 (displayln "\nPress Enter to process, 's' to skip, 'q' to quit:")
-                 (define response (read-line))
-                 (cond
-                   [(equal? response "q") (exit 0)]
-                   [(equal? response "s") #f]
-                   [else #t]))
-               #t)))
+      (if interactive?
+          (let ()
+            (displayln "\nPress Enter to process, 's' to skip, 'q' to quit:")
+            (define response (read-line))
+            (cond
+              [(equal? response "q") (exit 0)]
+              [(equal? response "s") #f]
+              [else #t]))
+          #t))
     
     (when should-process?
-      (process-message-with-filters msg filters #:dry-run? dry-run?)))
+      (if classifier-prompt
+          ;; Use structured classifier
+          (classify-email msg classifier-prompt #:dry-run? dry-run?)
+          ;; Use filter strategy
+          (process-message-with-filters msg filters #:dry-run? dry-run?))))
   
-  (displayln "\n✓ Done processing all messages!"))
+  (displayln "\n✓ Done processing all messages!")
+  
+  ;; Apply label colors if configured (and not in dry-run mode)
+  (unless dry-run?
+    (define color-scheme-override (hash-ref options 'color-scheme #f))
+    (define color-scheme (or color-scheme-override (get-config 'color-scheme)))
+    (when color-scheme
+      (apply-label-colors! #:scheme color-scheme))))
 
 ;; Run as daemon
 (define (cmd-daemon options)
@@ -377,6 +453,38 @@ NOTES:
         (displayln "\n✓ Done! Labels are now hidden from sidebar."))
       (displayln "\nCancelled. No changes made.")))
 
+;; Assign colors to labels
+(define (cmd-labels-assign-colors options)
+  (displayln "\n╔════════════════════════════════════════════════════════════╗")
+  (displayln "║  Assign Label Colors                                       ║")
+  (displayln "╚════════════════════════════════════════════════════════════╝\n")
+  
+  (get-gmail-token)
+  
+  (define color-scheme-override (hash-ref options 'color-scheme #f))
+  (define color-scheme (or color-scheme-override (get-config 'color-scheme)))
+  
+  (unless color-scheme
+    (displayln "Error: No color scheme configured.")
+    (displayln "Set color-scheme in config/schemail.rkt or use --color-scheme flag.")
+    (displayln "")
+    (displayln "Available schemes:")
+    (displayln "  ColorBrewer: set1 (9), set2 (8), set3 (12), paired (12)")
+    (displayln "  Paul Tol:    bright (7), muted (9), vibrant (7), light (9)")
+    (displayln "  Dynamic:     rainbow (unlimited)")
+    (exit 1))
+  
+  (apply-label-colors! #:scheme color-scheme))
+
+;; Cleanup experiment labels
+(define (cmd-labels-cleanup options)
+  (displayln "\n╔════════════════════════════════════════════════════════════╗")
+  (displayln "║  Cleanup Experiment Labels                                 ║")
+  (displayln "╚════════════════════════════════════════════════════════════╝\n")
+  
+  (get-gmail-token)
+  (cleanup-experiment-labels!))
+
 ;; ============================================================================
 ;; Main Entry Point
 ;; ============================================================================
@@ -398,6 +506,8 @@ NOTES:
     ['process (cmd-process options)]
     ['daemon (cmd-daemon options)]
     ['labels-hide-except (cmd-labels-hide-except options)]
+    ['labels-assign-colors (cmd-labels-assign-colors options)]
+    ['labels-cleanup (cmd-labels-cleanup options)]
     ['test (cmd-test options)]
     [else 
      (displayln (format "Unknown command: ~a" command))
