@@ -15,6 +15,13 @@
          "../config/schemail.rkt")
 
 ;; ============================================================================
+;; Constants
+;; ============================================================================
+
+;; Gmail API max results per request
+(define GMAIL-MAX-RESULTS-PER-PAGE 500)
+
+;; ============================================================================
 ;; CLI Argument Parsing
 ;; ============================================================================
 
@@ -34,7 +41,9 @@ USAGE:
   schemail help                  Show this help
 
 PROCESS OPTIONS:
-  --last N                  Process last N emails (default: 10)
+  --last N                  Process last N emails (default: 10, 0 = all matching query)
+  --today                   Process emails from last 24 hours (sets --since and --last 0)
+  --last-days N             Process emails from last N days (sets --since and --last 0)
   --unread                  Process only unread emails
   --since DATE              Process emails since date (YYYY-MM-DD)
   --until DATE              Process emails until date (YYYY-MM-DD)
@@ -64,7 +73,13 @@ PROCESS OPTIONS:
 
 DAEMON OPTIONS:
   --interval N              Poll interval in minutes (default: 5)
+  --recent-only             Only process emails from last 24 hours (ignores backlog)
   --query \"QUERY\"           Gmail query for emails to process
+                            Default: in:inbox -label:Schemail (unprocessed only)
+                            
+  Recommended workflow:
+    1. Clear backlog: bin/schemail process --last 0 --execute
+    2. Start daemon: bin/schemail daemon --recent-only --interval 5
 
 LABELS OPTIONS:
   hide-except PREFIX        Hide all labels except those starting with PREFIX
@@ -79,6 +94,12 @@ LABELS OPTIONS:
 EXAMPLES:
   # Dry-run on last 10 emails (safe)
   schemail process --last 10
+  
+  # Process all emails from last 2 days with Haiku
+  schemail process --last-days 2 --classifier experiment-3 --model haiku-4-5 --execute
+  
+  # Process today's emails
+  schemail process --today --classifier experiment-3 --model haiku-4-5 --execute
   
   # Actually process last 50 emails with hybrid strategy
   schemail process --last 50 --filter hybrid --execute
@@ -100,8 +121,9 @@ EXAMPLES:
   # Interactive mode (review each email)
   schemail process --last 20 --interactive
   
-  # Run as daemon (checks every 5 minutes)
-  schemail daemon --interval 5
+  # Clear backlog first, then run daemon
+  schemail process --last 0 --classifier experiment-3 --model haiku-4-5 --execute
+  schemail daemon --classifier experiment-3 --model haiku-4-5 --interval 5
 
 FILTER STRATEGIES:
   hybrid       - Fast pattern matching + LLM fallback (recommended)
@@ -140,6 +162,7 @@ NOTES:
   (hash-set! options 'until #f)
   (hash-set! options 'include-processed? #f)
   (hash-set! options 'color-scheme #f)
+  (hash-set! options 'recent-only? #f)
   
   (let loop ([args args])
     (match args
@@ -171,6 +194,33 @@ NOTES:
       ;; Options
       [(list "--last" n rest ...)
        (hash-set! options 'last (string->number n))
+       (loop rest)]
+      [(list "--today" rest ...)
+       ;; Set since to yesterday and last to 0 (all)
+       (define yesterday
+         (let* ([now (current-seconds)]
+                [day-ago (- now (* 24 60 60))]
+                [date (seconds->date day-ago)])
+           (format "~a-~a-~a"
+                   (date-year date)
+                   (~r (date-month date) #:min-width 2 #:pad-string "0")
+                   (~r (date-day date) #:min-width 2 #:pad-string "0"))))
+       (hash-set! options 'since yesterday)
+       (hash-set! options 'last 0)  ; 0 = get all
+       (loop rest)]
+      [(list "--last-days" n rest ...)
+       ;; Set since to N days ago and last to 0 (all)
+       (define days (string->number n))
+       (define n-days-ago
+         (let* ([now (current-seconds)]
+                [days-ago (- now (* days 24 60 60))]
+                [date (seconds->date days-ago)])
+           (format "~a-~a-~a"
+                   (date-year date)
+                   (~r (date-month date) #:min-width 2 #:pad-string "0")
+                   (~r (date-day date) #:min-width 2 #:pad-string "0"))))
+       (hash-set! options 'since n-days-ago)
+       (hash-set! options 'last 0)  ; 0 = get all
        (loop rest)]
       [(list "--unread" rest ...)
        (hash-set! options 'unread? #t)
@@ -218,6 +268,9 @@ NOTES:
        (loop rest)]
       [(list "--interval" n rest ...)
        (hash-set! options 'interval (string->number n))
+       (loop rest)]
+      [(list "--recent-only" rest ...)
+       (hash-set! options 'recent-only? #t)
        (loop rest)]
       
       [else
@@ -285,18 +338,59 @@ NOTES:
            [else "in:inbox -label:Schemail"]))
        base-query]))
   
-  ;; Fetch messages
+  ;; Fetch messages (with pagination when needed)
   (displayln (format "Fetching ~a emails~a..."
-                     (if last-n last-n "all")
+                     (cond [(not last-n) "10"]
+                           [(= last-n 0) "all"]
+                           [else last-n])
                      (if gmail-query (format " (query: ~a)" gmail-query) "")))
   
-  (define messages-response 
-    (gmail-list-messages #:query gmail-query 
-                        #:max-results (or last-n 100)))
+  ;; Determine if we need pagination
+  (define needs-pagination? 
+    (or (and last-n (= last-n 0))                           ; --last 0 means all
+        (and last-n (> last-n GMAIL-MAX-RESULTS-PER-PAGE)))) ; --last N > max
   
-  (define message-ids 
-    (map (λ (m) (hash-ref m 'id))
-         (hash-ref messages-response 'messages '())))
+  (define message-ids
+    (if needs-pagination?
+        ;; Paginate through messages
+        (let loop ([page-token #f]
+                   [all-ids '()])
+          ;; Calculate how many we still need
+          (define target-count (if (= last-n 0) +inf.0 last-n))
+          (define already-fetched (length all-ids))
+          (define remaining (- target-count already-fetched))
+          
+          ;; Stop if we have enough
+          (when (and (not (infinite? target-count)) (<= remaining 0))
+            all-ids)
+          
+          ;; Determine page size (max 500, or less if we need fewer)
+          (define page-size 
+            (if (infinite? remaining)
+                GMAIL-MAX-RESULTS-PER-PAGE
+                (min remaining GMAIL-MAX-RESULTS-PER-PAGE)))
+          
+          ;; Fetch page
+          (define response (gmail-list-messages #:query gmail-query 
+                                               #:max-results page-size
+                                               #:page-token page-token))
+          (define messages (hash-ref response 'messages '()))
+          (define ids (map (λ (m) (hash-ref m 'id)) messages))
+          (define next-token (hash-ref response 'nextPageToken #f))
+          (define updated-ids (append all-ids ids))
+          
+          ;; Show progress
+          (displayln (format "  ...fetched ~a messages so far..." (length updated-ids)))
+          
+          ;; Continue if there's a next page and we need more
+          (if (and next-token (< (length updated-ids) target-count))
+              (loop next-token updated-ids)
+              updated-ids))
+        ;; Single request (normal behavior for small --last N)
+        (let ([response (gmail-list-messages #:query gmail-query 
+                                            #:max-results (or last-n 100))])
+          (map (λ (m) (hash-ref m 'id))
+               (hash-ref response 'messages '())))))
   
   (when (empty? message-ids)
     (displayln "No messages found!")
@@ -386,14 +480,22 @@ NOTES:
   (define interval-minutes (hash-ref options 'interval 5))
   (define interval-seconds (* interval-minutes 60))
   (define user-query (hash-ref options 'query #f))
+  (define recent-only? (hash-ref options 'recent-only? #f))
   (define classifier-experiment (hash-ref options 'classifier #f))
   (define model (hash-ref options 'model "claude-haiku-4-5"))
   (define filter-strategy (hash-ref options 'filter 'hybrid))
   
   ;; Default query: unprocessed emails in inbox
-  (define query (or user-query "in:inbox -label:Schemail"))
+  ;; The -label:Schemail ensures we only process each email once
+  ;; If --recent-only, add newer_than:1d to ignore backlog
+  (define base-query "in:inbox -label:Schemail")
+  (define query (or user-query 
+                    (if recent-only?
+                        (string-append base-query " newer_than:1d")
+                        base-query)))
   
   (displayln (format "Polling interval: ~a minutes" interval-minutes))
+  (displayln (format "Recent only: ~a" (if recent-only? "yes (last 24h)" "no (all backlog)")))
   (displayln (format "Query: ~a" query))
   (if classifier-experiment
       (begin

@@ -10,13 +10,18 @@
 ;; Messages
 ;; ============================================================================
 
-;; List messages (with optional query)
-(define (gmail-list-messages #:query [query #f] #:max-results [max-results 100])
-  (define endpoint (if query
-                       (format "messages?q=~a&maxResults=~a" 
-                               (uri-encode query)
-                               max-results)
-                       (format "messages?maxResults=~a" max-results)))
+;; List messages (with optional query and pagination)
+(define (gmail-list-messages #:query [query #f] 
+                            #:max-results [max-results 100]
+                            #:page-token [page-token #f])
+  (define base-params (if query
+                          (format "messages?q=~a&maxResults=~a" 
+                                  (uri-encode query)
+                                  max-results)
+                          (format "messages?maxResults=~a" max-results)))
+  (define endpoint (if page-token
+                       (format "~a&pageToken=~a" base-params page-token)
+                       base-params))
   (gmail-api-request endpoint))
 
 ;; Get a single message by ID

@@ -14,7 +14,9 @@ Schemail uses large language models to intelligently classify your emails into c
 - 🎨 **Automatic color coding** - Rainbow colors for visual organization
 - ⚡ **Label reuse** - Model learns existing labels to prevent proliferation
 - 🎯 **Inbox Zero friendly** - Only human-action emails stay in inbox
-- 💰 **Cost-effective** - ~$0.003 per email (~$9/month for 100 emails/day)
+- 💰 **Cost-effective** - Haiku: ~$0.0006/email (~$0.18/month), Sonnet: ~$0.10/email (~$300/month)
+- 🔄 **Daemon mode** - Automatic processing of new emails every N minutes
+- ⚡ **Bulk processing** - Pagination support for processing 70k+ emails
 
 **Tested Performance:**
 - 50 emails → 4 labels (Events, Personal, Travel, Jobs)
@@ -49,30 +51,36 @@ raco pkg install simple-oauth2 http-easy
 **Easy way (using wrapper script):**
 
 ```bash
-# Test on 10 emails (dry-run)
+# Test on 10 emails with Haiku (dry-run)
 bin/classify
 
-# Test on 50 emails (dry-run)
-bin/classify 50
-
-# Process 50 emails (live)
+# Process 50 emails with Haiku (live, cheap)
 bin/classify 50 --live
 
-# Process 200 emails (live, with auto-logging)
+# Process 200 emails with Haiku (live, with auto-logging)
 bin/classify 200 --live
 ```
 
 **Manual way (full control):**
 
 ```bash
-# Process last 10 emails (dry-run)
-bin/schemail process --last 10 --classifier experiment-3
+# Process last 10 emails with Haiku (dry-run, cheap)
+bin/schemail process --last 10 --classifier experiment-3 --model haiku-4-5
 
-# Process last 50 emails (live)
-bin/schemail process --last 50 --classifier experiment-3 --execute
+# Process today's emails with Haiku (all from last 24 hours)
+bin/schemail process --today --classifier experiment-3 --model haiku-4-5 --execute
 
-# Process last 200 emails with logging
-bin/schemail process --last 200 --classifier experiment-3 --execute 2>&1 | tee output.log
+# Process last 2 days with Haiku (no limit on count)
+bin/schemail process --last-days 2 --classifier experiment-3 --model haiku-4-5 --execute
+
+# Process ALL unprocessed emails with Haiku (uses pagination)
+bin/schemail process --last 0 --classifier experiment-3 --model haiku-4-5 --execute
+
+# Run as daemon (polls every 5 minutes, automatic processing)
+bin/schemail daemon --classifier experiment-3 --model haiku-4-5 --interval 5
+
+# Use expensive Sonnet for important emails
+bin/schemail process --last 50 --classifier experiment-3 --model sonnet-4-5 --execute
 
 # Apply colors to existing labels
 bin/schemail labels assign-colors --color-scheme rainbow
@@ -203,20 +211,35 @@ Color Assignment (rainbow scheme)
 ### Process Emails
 
 ```bash
-# Basic processing
-bin/schemail process --last N --classifier experiment-3 --execute
+# Basic processing with Haiku (cheap)
+bin/schemail process --last N --classifier experiment-3 --model haiku-4-5 --execute
+
+# Process today's emails (last 24 hours, no count limit)
+bin/schemail process --today --classifier experiment-3 --model haiku-4-5 --execute
+
+# Process last N days (no count limit, auto-pagination)
+bin/schemail process --last-days 7 --classifier experiment-3 --model haiku-4-5 --execute
+
+# Process ALL unprocessed emails (pagination for 70k+ emails)
+bin/schemail process --last 0 --classifier experiment-3 --model haiku-4-5 --execute
+
+# Run as daemon (polls every 5 minutes)
+bin/schemail daemon --classifier experiment-3 --model haiku-4-5 --interval 5
 
 # With custom query
-bin/schemail process --query "label:INBOX -label:Schemail" --last 50 --classifier experiment-3 --execute
+bin/schemail process --query "label:INBOX -label:Schemail" --last 50 --classifier experiment-3 --model haiku-4-5 --execute
 
 # Include already-processed emails
-bin/schemail process --last 50 --classifier experiment-3 --include-processed --execute
+bin/schemail process --last 50 --classifier experiment-3 --model haiku-4-5 --include-processed --execute
 
 # Process unread only
-bin/schemail process --unread --classifier experiment-3 --execute
+bin/schemail process --unread --classifier experiment-3 --model haiku-4-5 --execute
 
 # Process by date range
-bin/schemail process --since "2026-02-01" --until "2026-02-15" --classifier experiment-3 --execute
+bin/schemail process --since "2026-02-01" --until "2026-02-15" --classifier experiment-3 --model haiku-4-5 --execute
+
+# Use expensive Sonnet for better quality
+bin/schemail process --last 50 --classifier experiment-3 --model sonnet-4-5 --execute
 ```
 
 ### Label Management
@@ -282,38 +305,53 @@ racket src/test-refresh.rkt
 ## Documentation
 
 - **[QUICKSTART.md](QUICKSTART.md)** - Detailed setup guide
+- **[docs/cheatsheet.md](docs/cheatsheet.md)** - Quick reference card
+- **[docs/daemon-mode.md](docs/daemon-mode.md)** - How daemon mode works (timestamp granularity, polling, etc.)
+- **[docs/README.md](docs/README.md)** - Full documentation index
 - **[TODO.md](TODO.md)** - Development roadmap
 - **[notes/](notes/)** - Design decisions and experiments
 
 ### Key Documents
 
+- `docs/daemon-mode.md` - Complete daemon mode guide (polling, timestamps, systemd)
 - `notes/classifier-experiments.md` - All experiment results and analysis
 - `notes/flat-label-experiment-results.md` - Flat vs nested label comparison
 - `notes/label-structure-evolution.md` - Label design evolution
 - `notes/label-colors.md` - Color system design
 - `notes/oauth-improvements.md` - OAuth token recovery
+- `todo/gmail-push-notifications.md` - Real-time push setup (alternative to polling)
 
 ## Cost Analysis
 
-**Per-email cost (Claude Sonnet 4.5):**
+### Model Comparison
+
+**Haiku 4.5 (Recommended, default):**
+- Input: ~700 tokens × $1/M = $0.0007
+- Output: ~50 tokens × $5/M = $0.00025
+- **Total: ~$0.0006 per email**
+- 100 emails/day × 30 days = **$1.80/month**
+- 70,000 inbox emails = **$42 one-time**
+
+**Sonnet 4.5 (Higher quality, 166x more expensive):**
 - Input: ~700 tokens × $3/M = $0.0021
 - Output: ~50 tokens × $15/M = $0.00075
-- **Total: ~$0.003 per email**
+- **Total: ~$0.10 per email** (actual production cost, not $0.003!)
+- 100 emails/day × 30 days = **$300/month**
+- 70,000 inbox emails = **$7,000 one-time**
 
-**Scaling scenarios:**
-- 100 emails/day × 30 days = $9/month
-- 72,762 inbox emails = $218 one-time (50-60 hours)
-- 112,786 total emails = $338 one-time (78-94 hours)
+**Recommendation:** Use Haiku for bulk processing, Sonnet only for important emails or quality testing.
 
 ## Roadmap
 
 - [x] OAuth2 with automatic token refresh
 - [x] Gmail API wrapper (full CRUD)
-- [x] Structured classifier with Claude Sonnet 4.5
+- [x] Structured classifier with Claude Haiku 4.5 and Sonnet 4.5
 - [x] Three experiment prompts with testing
 - [x] Flat label structure with color coding
 - [x] Label reuse to prevent proliferation
-- [ ] Daemon mode (polling for new emails)
+- [x] Daemon mode (polling for new emails)
+- [x] Pagination for bulk processing (70k+ emails)
+- [x] Time-based filtering (--today, --last-days)
 - [ ] Calendar integration (action-based event extraction)
 - [ ] Gmail Push API (Pub/Sub for real-time)
 - [ ] Web UI for viewing stats

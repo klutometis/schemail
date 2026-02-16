@@ -2,7 +2,9 @@
 
 ## What Is This?
 
-An intelligent email filtering system built in Racket that uses **Claude Sonnet 4.5** to automatically classify and organize your Gmail inbox using Inbox Zero principles.
+An intelligent email filtering system built in Racket that uses **Claude AI** (Haiku 4.5 or Sonnet 4.5) to automatically classify and organize your Gmail inbox using Inbox Zero principles.
+
+**Default model:** Haiku 4.5 (~$0.0006/email, 166x cheaper than Sonnet)
 
 ## Current Status
 
@@ -47,12 +49,13 @@ bin/classify
 
 **Manual way:**
 ```bash
-bin/schemail process --last 10 --classifier experiment-3
+bin/schemail process --last 10 --classifier experiment-3 --model haiku-4-5
 ```
 
 This will:
 - Fetch last 10 unprocessed emails from inbox
 - Show what Claude would do (label + archive decisions)
+- Use cheap Haiku model (~$0.006 total cost)
 - NOT make any changes (dry-run mode)
 
 ### 3. Process 50 Emails (Live)
@@ -64,7 +67,7 @@ bin/classify 50 --live
 
 **Manual way:**
 ```bash
-bin/schemail process --last 50 --classifier experiment-3 --execute
+bin/schemail process --last 50 --classifier experiment-3 --model haiku-4-5 --execute
 ```
 
 This will:
@@ -72,6 +75,7 @@ This will:
 - Archive non-actionable emails
 - Apply rainbow colors
 - Skip already-processed emails (those with `Schemail` label)
+- Use cheap Haiku model (~$0.03 total cost)
 - Auto-log to `/tmp/schemail-classify-*.log`
 
 ### 4. View Results in Gmail
@@ -133,39 +137,48 @@ Model spontaneously creates simple labels:
 **Using wrapper script (recommended):**
 
 ```bash
-# Test on 10 emails (dry-run)
+# Test on 10 emails (dry-run, Haiku)
 bin/classify
 
-# Test on 50 emails (dry-run)
+# Test on 50 emails (dry-run, Haiku)
 bin/classify 50
 
-# Process 50 emails (live)
+# Process 50 emails (live, Haiku - cheap!)
 bin/classify 50 --live
 
-# Process 200 emails (live, auto-logged)
+# Process 200 emails (live, auto-logged, Haiku)
 bin/classify 200 --live
 ```
 
 **Using CLI directly (full control):**
 
 ```bash
-# Test on 10 emails (dry-run)
-bin/schemail process --last 10 --classifier experiment-3
+# Test on 10 emails (dry-run, Haiku)
+bin/schemail process --last 10 --classifier experiment-3 --model haiku-4-5
 
-# Process 50 emails (live)
-bin/schemail process --last 50 --classifier experiment-3 --execute
+# Process today's emails (last 24 hours, no count limit)
+bin/schemail process --today --classifier experiment-3 --model haiku-4-5 --execute
 
-# Process 200 emails with logging
-bin/schemail process --last 200 --classifier experiment-3 --execute 2>&1 | tee output.log
+# Process last 2 days (no count limit, auto-pagination)
+bin/schemail process --last-days 2 --classifier experiment-3 --model haiku-4-5 --execute
+
+# Process ALL unprocessed emails (auto-pagination for 70k+ emails)
+bin/schemail process --last 0 --classifier experiment-3 --model haiku-4-5 --execute
+
+# Run as daemon (polls every 5 minutes for new emails)
+bin/schemail daemon --classifier experiment-3 --model haiku-4-5 --interval 5
+
+# Process 50 emails with Sonnet (expensive but higher quality)
+bin/schemail process --last 50 --classifier experiment-3 --model sonnet-4-5 --execute
 
 # Process only unread
-bin/schemail process --unread --classifier experiment-3 --execute
+bin/schemail process --unread --classifier experiment-3 --model haiku-4-5 --execute
 
 # Process date range
-bin/schemail process --since "2026-02-01" --classifier experiment-3 --execute
+bin/schemail process --since "2026-02-01" --classifier experiment-3 --model haiku-4-5 --execute
 
 # Process with custom query
-bin/schemail process --query "label:INBOX" --last 100 --classifier experiment-3 --execute
+bin/schemail process --query "label:INBOX" --last 100 --classifier experiment-3 --model haiku-4-5 --execute
 ```
 
 ### Label Management
@@ -272,16 +285,71 @@ Model is explicitly told:
 
 ## Cost
 
-**Per-email cost (Claude Sonnet 4.5):**
+### Haiku 4.5 (Default, Recommended)
 - ~750 tokens per email
-- ~$0.003 per email
-- ~$9/month for 100 emails/day
+- ~$0.0006 per email
+- ~$1.80/month for 100 emails/day
+- **70,000 inbox emails = $42 one-time**
 
-**One-time processing:**
-- 72,762 inbox emails = ~$218 (~50-60 hours)
-- 112,786 total emails = ~$338 (~78-94 hours)
+### Sonnet 4.5 (Higher Quality, 166x More Expensive)
+- ~750 tokens per email
+- ~$0.10 per email (actual production cost!)
+- ~$300/month for 100 emails/day
+- **70,000 inbox emails = $7,000 one-time** 😱
 
-**Recommended:** Start with inbox, run in batches overnight.
+**Recommendation:** 
+- Use **Haiku** for bulk processing (default)
+- Use **Sonnet** only for testing or when you need highest quality
+- Start with inbox, process in batches with `--last 1000` or use `--last 0` for everything
+
+## Bulk Processing (70k+ Emails)
+
+Want to process your entire inbox history? Here's how:
+
+### Option 1: Process Everything at Once
+
+```bash
+# Process ALL unprocessed emails (auto-pagination)
+bin/schemail process --last 0 --classifier experiment-3 --model haiku-4-5 --execute
+```
+
+This will:
+- Automatically paginate through ALL unprocessed emails
+- Fetch 500 emails per page (Gmail API limit)
+- Show progress as it goes
+- Cost: ~$0.0006/email with Haiku
+
+### Option 2: Process in Batches
+
+```bash
+# Process 1000 emails at a time (recommended for safety)
+bin/schemail process --last 1000 --classifier experiment-3 --model haiku-4-5 --execute
+
+# Run again for next 1000 (automatically skips processed)
+bin/schemail process --last 1000 --classifier experiment-3 --model haiku-4-5 --execute
+```
+
+### Option 3: Process by Time Period
+
+```bash
+# Process last week
+bin/schemail process --last-days 7 --classifier experiment-3 --model haiku-4-5 --execute
+
+# Process today only
+bin/schemail process --today --classifier experiment-3 --model haiku-4-5 --execute
+
+# Process specific date range
+bin/schemail process --since "2026-01-01" --classifier experiment-3 --model haiku-4-5 --execute
+```
+
+### Option 4: Daemon Mode (Automatic)
+
+```bash
+# Run continuously, process new emails every 5 minutes
+bin/schemail daemon --classifier experiment-3 --model haiku-4-5 --interval 5
+```
+
+Press Ctrl+C to stop.
 
 ## Examples
 
@@ -418,6 +486,7 @@ bin/schemail process --query "in:all -label:Schemail" --last 500 --classifier ex
 ## Documentation
 
 - **[README.md](README.md)** - Full project overview
+- **[docs/daemon-mode.md](docs/daemon-mode.md)** - Complete daemon mode guide
 - **[TODO.md](TODO.md)** - Development roadmap
 - **[notes/classifier-experiments.md](notes/classifier-experiments.md)** - Detailed test results
 - **[notes/flat-label-experiment-results.md](notes/flat-label-experiment-results.md)** - Flat vs nested comparison
