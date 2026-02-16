@@ -15,21 +15,26 @@ NC='\033[0m' # No Color
 # Show usage
 usage() {
     cat <<EOF
-Usage: classify [N] [--live]
+Usage: classify [N] [--live] [--model MODEL]
 
 Classify N emails from your inbox using Experiment 3 (flat labels).
 
 Arguments:
-  N          Number of emails to process (default: 10)
-  --live     Actually apply labels and archive (default: dry-run)
+  N             Number of emails to process (default: 10)
+  --live        Actually apply labels and archive (default: dry-run)
+  --model MODEL LLM model to use (default: haiku-4-5)
+                  haiku-4-5  = Fast, cheap (~\$0.0006/email)
+                  sonnet-4-5 = Smart, expensive (~\$0.10/email)
 
 Examples:
-  classify             # Dry-run on last 10 emails
-  classify 50          # Dry-run on last 50 emails
-  classify 50 --live   # Process 50 emails (apply labels)
-  classify 200 --live  # Process 200 emails (apply labels)
+  classify                    # Dry-run on last 10 emails (Haiku)
+  classify 50                 # Dry-run on last 50 emails (Haiku)
+  classify 50 --live          # Process 50 emails (Haiku, apply labels)
+  classify 200 --live         # Process 200 emails (Haiku)
+  classify 10 --model sonnet-4-5 --live  # Use Sonnet for new emails
 
 Default mode is DRY-RUN (safe). Use --live to actually modify emails.
+Default model is Haiku 4.5 (cheap). Use Sonnet for better quality on small batches.
 
 Classifier: experiment-3 (Inbox Zero framework with flat labels)
 Color scheme: rainbow (applied automatically at end)
@@ -42,24 +47,41 @@ EOF
 # Parse arguments
 N=10
 LIVE=""
+MODEL="haiku-4-5"
 
 if [[ "${1:-}" == "-h" ]] || [[ "${1:-}" == "--help" ]]; then
     usage
 fi
 
-if [[ -n "${1:-}" ]]; then
-    if [[ "$1" =~ ^[0-9]+$ ]]; then
-        N="$1"
-        shift
-    fi
-fi
+# Parse all arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --live|-l)
+            LIVE="--execute"
+            shift
+            ;;
+        --model)
+            MODEL="$2"
+            shift 2
+            ;;
+        [0-9]*)
+            N="$1"
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            usage
+            ;;
+    esac
+done
 
-if [[ "${1:-}" == "--live" ]] || [[ "${1:-}" == "-l" ]]; then
-    LIVE="--execute"
+if [[ -n "$LIVE" ]]; then
     echo -e "${YELLOW}⚠ LIVE MODE: Will modify emails!${NC}"
+    echo -e "  Model: ${MODEL}"
     echo ""
 else
     echo -e "${GREEN}🔒 DRY-RUN MODE: Safe, no changes will be made${NC}"
+    echo -e "  Model: ${MODEL}"
     echo ""
 fi
 
@@ -67,5 +89,6 @@ fi
 exec "$SCHEMAIL" process \
     --last "$N" \
     --classifier experiment-3 \
+    --model "$MODEL" \
     $LIVE \
     2>&1 | tee "/tmp/schemail-classify-$(date +%Y%m%d-%H%M%S).log"

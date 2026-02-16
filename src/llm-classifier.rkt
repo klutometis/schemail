@@ -11,15 +11,19 @@
 
 (provide classify-email
          classify-email-dry-run
-         apply-classification)
+         apply-classification
+         current-model)
 
 ;; ============================================================================
 ;; Configuration
 ;; ============================================================================
 
 (define CLAUDE-API-URL "https://api.anthropic.com/v1/messages")
-(define CLAUDE-MODEL "claude-sonnet-4-5")  ; Sonnet 4.5
+(define DEFAULT-CLAUDE-MODEL "claude-haiku-4-5")  ; Haiku 4.5 (cheap, default)
 (define ANTHROPIC-API-KEY (getenv "ANTHROPIC_API_KEY"))
+
+;; Model parameter - can be overridden by caller
+(define current-model (make-parameter DEFAULT-CLAUDE-MODEL))
 
 (unless ANTHROPIC-API-KEY
   (error "ANTHROPIC_API_KEY environment variable not set"))
@@ -74,7 +78,7 @@
   
   ;; Build request with output_config for structured outputs
   (define request-body
-    (hasheq 'model CLAUDE-MODEL
+    (hasheq 'model (current-model)
             'max_tokens 1024
             'output_config (hasheq 'format (hasheq 'type "json_schema"
                                                     'schema CLASSIFICATION-SCHEMA))
@@ -84,7 +88,7 @@
                                                     email-text)))))
   
   (displayln "\n=== Calling Claude API (Classifier) ===")
-  (displayln (format "Model: ~a" CLAUDE-MODEL))
+  (displayln (format "Model: ~a" (current-model)))
   
   (define response
     (post CLAUDE-API-URL

@@ -47,6 +47,10 @@ PROCESS OPTIONS:
   --classifier EXPERIMENT   Use structured classifier instead of filters
                             Options: experiment-1, experiment-2, experiment-3
   
+  --model MODEL             LLM model to use (default: haiku-4-5)
+                            Options: haiku-4-5 (cheap), sonnet-4-5 (smart)
+                            Haiku: ~$0.0006/email, Sonnet: ~$0.10/email
+  
   --color-scheme SCHEME     Color scheme for labels (overrides config)
                             Options: set1, muted, bright, rainbow, none
                             Applies colors at end of process run
@@ -126,6 +130,7 @@ NOTES:
   (hash-set! options 'dry-run? #t)
   (hash-set! options 'filter 'hybrid)
   (hash-set! options 'classifier #f)
+  (hash-set! options 'model "claude-haiku-4-5")  ; Default to Haiku
   (hash-set! options 'unread? #f)
   (hash-set! options 'interactive? #f)
   (hash-set! options 'verbose? #f)
@@ -185,6 +190,13 @@ NOTES:
       [(list "--classifier" experiment rest ...)
        (hash-set! options 'classifier (string->symbol experiment))
        (loop rest)]
+      [(list "--model" model rest ...)
+       (define full-model (cond
+                            [(equal? model "haiku-4-5") "claude-haiku-4-5"]
+                            [(equal? model "sonnet-4-5") "claude-sonnet-4-5"]
+                            [else model]))  ; Allow full model name too
+       (hash-set! options 'model full-model)
+       (loop rest)]
       [(list "--color-scheme" scheme rest ...)
        (define scheme-sym (string->symbol scheme))
        (hash-set! options 'color-scheme (if (eq? scheme-sym 'none) #f scheme-sym))
@@ -228,6 +240,7 @@ NOTES:
   (define dry-run? (hash-ref options 'dry-run?))
   (define filter-strategy (hash-ref options 'filter))
   (define classifier-experiment (hash-ref options 'classifier))
+  (define model (hash-ref options 'model))
   (define last-n (hash-ref options 'last))
   (define unread? (hash-ref options 'unread?))
   (define user-query (hash-ref options 'query))
@@ -238,7 +251,9 @@ NOTES:
   
   (displayln (format "Mode: ~a" (if dry-run? "DRY-RUN (safe)" "LIVE (will modify emails)")))
   (if classifier-experiment
-      (displayln (format "Classifier: ~a" classifier-experiment))
+      (begin
+        (displayln (format "Classifier: ~a" classifier-experiment))
+        (displayln (format "Model: ~a" model)))
       (displayln (format "Filter Strategy: ~a" filter-strategy)))
   (displayln "")
   
@@ -344,8 +359,9 @@ NOTES:
     
     (when should-process?
       (if classifier-prompt
-          ;; Use structured classifier with labels hash
-          (classify-email msg classifier-prompt labels-hash #:dry-run? dry-run?)
+          ;; Use structured classifier with labels hash and model parameter
+          (parameterize ([current-model model])
+            (classify-email msg classifier-prompt labels-hash #:dry-run? dry-run?))
           ;; Use filter strategy
           (process-message-with-filters msg filters #:dry-run? dry-run?))))
   
@@ -367,25 +383,66 @@ NOTES:
   (displayln "║  Daemon Mode                                               ║")
   (displayln "╚════════════════════════════════════════════════════════════╝\n")
   
-  (define interval-minutes (hash-ref options 'interval))
+  (define interval-minutes (hash-ref options 'interval 5))
   (define interval-seconds (* interval-minutes 60))
-  (define query (hash-ref options 'query "is:unread"))
+  (define user-query (hash-ref options 'query #f))
+  (define classifier-experiment (hash-ref options 'classifier #f))
+  (define model (hash-ref options 'model "claude-haiku-4-5"))
+  (define filter-strategy (hash-ref options 'filter 'hybrid))
+  
+  ;; Default query: unprocessed emails in inbox
+  (define query (or user-query "in:inbox -label:Schemail"))
   
   (displayln (format "Polling interval: ~a minutes" interval-minutes))
   (displayln (format "Query: ~a" query))
-  (displayln "Press Ctrl+C to stop.\n")
+  (if classifier-experiment
+      (begin
+        (displayln (format "Classifier: ~a" classifier-experiment))
+        (displayln (format "Model: ~a" model)))
+      (displayln (format "Filter strategy: ~a" filter-strategy)))
+  (displayln "\nPress Ctrl+C to stop.\n")
   
   ;; Get Gmail token once at startup (will authorize if needed)
   (get-gmail-token)
   
+  ;; Load classifier prompt if using classifier
+  (define classifier-prompt
+    (and classifier-experiment
+         (match classifier-experiment
+           ['experiment-1 experiment-1-prompt]
+           ['experiment-2 experiment-2-prompt]
+           ['experiment-3 experiment-3-prompt]
+           [_ #f])))
+  
+  ;; Load filter strategy if using filters
+  (define filters
+    (and (not classifier-prompt)
+         (match filter-strategy
+           ['hybrid filters-hybrid]
+           ['pure-llm filters-pure-llm]
+           ['selective-llm filters-selective-llm]
+           [_ filters-hybrid])))
+  
+  ;; Fetch labels once for classifier mode
+  (define labels-hash
+    (if classifier-prompt
+        (get-labels-with-counts #:exclude (get-config 'exclude-from-coloring))
+        #f))
+  
   (let loop ()
-    (displayln (format "\n[~a] Checking for new emails..." 
-                      (~a (seconds->date (current-seconds)))))
+    (define now (seconds->date (current-seconds)))
+    (displayln (format "\n[~a-~a-~a ~a:~a:~a] Checking for new emails..." 
+                      (date-year now)
+                      (~r (date-month now) #:min-width 2 #:pad-string "0")
+                      (~r (date-day now) #:min-width 2 #:pad-string "0")
+                      (~r (date-hour now) #:min-width 2 #:pad-string "0")
+                      (~r (date-minute now) #:min-width 2 #:pad-string "0")
+                      (~r (date-second now) #:min-width 2 #:pad-string "0")))
     
     (with-handlers ([exn:fail? 
                      (λ (e)
-                       (displayln (format "Error: ~a" (exn-message e)))
-                       (displayln "Continuing..."))])
+                       (displayln (format "⚠ Error: ~a" (exn-message e)))
+                       (displayln "  Continuing..."))])
       
       (define messages-response 
         (gmail-list-messages #:query query #:max-results 50))
@@ -395,15 +452,24 @@ NOTES:
              (hash-ref messages-response 'messages '())))
       
       (if (empty? message-ids)
-          (displayln "  No new messages.")
+          (displayln "  ✓ No new messages")
           (begin
-            (displayln (format "  Found ~a new message(s), processing..." 
+            (displayln (format "  → Found ~a new message(s), processing..." 
                               (length message-ids)))
+            
+            ;; Process each message
             (for ([id message-ids])
               (define msg (gmail-get-message id))
-              (process-message-with-filters msg filters-hybrid #:dry-run? #f)))))
+              (if classifier-prompt
+                  ;; Use classifier
+                  (parameterize ([current-model model])
+                    (classify-email msg classifier-prompt labels-hash #:dry-run? #f))
+                  ;; Use filters
+                  (process-message-with-filters msg filters #:dry-run? #f)))
+            
+            (displayln (format "  ✓ Processed ~a message(s)" (length message-ids))))))
     
-    (displayln (format "  Sleeping for ~a minutes..." interval-minutes))
+    (displayln (format "  ⏳ Sleeping for ~a minutes..." interval-minutes))
     (sleep interval-seconds)
     (loop)))
 
