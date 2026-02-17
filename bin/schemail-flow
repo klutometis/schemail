@@ -7,7 +7,8 @@
          "../src/gmail.rkt"
          "../src/email-sender.rkt"
          "../src/reply-drafter.rkt"
-         "../src/llm-classifier.rkt")
+         "../src/llm-classifier.rkt"
+         "../src/people.rkt")
 
 ;; Configuration
 (define user-name #f)  ; Will be passed to AI if set
@@ -24,9 +25,9 @@
   (system "stty -raw echo")
   key)
 
-;; Get the To address from message (which address it was sent to)
-(define (message-to message)
-  (message-header message "To"))
+;; Get the address the email was delivered to (handles To/Cc/Bcc correctly)
+(define (message-delivered-to message)
+  (message-header message "Delivered-To"))
 
 ;; Display email
 (define (display-email msg index total labels)
@@ -121,11 +122,13 @@
     (λ () (port->string (current-input-port)))))
 
 ;; Handle reply action
-(define (handle-reply msg user-email)
+(define (handle-reply msg user-email user-display-name)
   (displayln "\nGenerating reply with Claude...")
   (flush-output)
   
-  (define draft (draft-reply msg #:user-email user-email))
+  (define draft (draft-reply msg 
+                            #:user-email user-email
+                            #:user-name (or user-display-name "")))
   
   (let loop ()
     (display-draft draft)
@@ -154,10 +157,11 @@
              original-subject
              (string-append "Re: " original-subject)))
        
-       ;; Determine From address - use the To address from original
-       ;; This handles multiple email addresses (personal/work/etc)
-       (define reply-from (or (message-to msg) user-email))
-       (displayln (format "  From: ~a" reply-from))
+        ;; Determine From address - use Delivered-To (handles To/Cc/Bcc correctly)
+        ;; Delivered-To always contains the actual recipient address (even if CC'd/BCC'd)
+        (define reply-email (or (message-delivered-to msg) user-email))
+        (define reply-from (format-email-with-name reply-email user-display-name))
+        (displayln (format "  From: ~a" reply-from))
        (displayln (format "  To: ~a" (message-from msg)))
        (flush-output)
        
@@ -201,9 +205,14 @@
   ;; Get OAuth token
   (get-gmail-token)
   
-  ;; Get user email
+  ;; Get user email and display name
   (define user-email (gmail-get-user-email))
-  (displayln (format "Logged in as: ~a" user-email))
+  (define user-display-name (people-get-display-name))
+  (displayln (format "Logged in as: ~a~a" 
+                     user-email
+                     (if user-display-name 
+                         (format " (~a)" user-display-name)
+                         "")))
   (displayln "")
   
   ;; Fetch inbox messages (already processed/labeled by daemon)
@@ -243,7 +252,7 @@
       (case action
         [(#\r)
          ;; Reply
-         (define result (handle-reply msg user-email))
+         (define result (handle-reply msg user-email user-display-name))
          (when (eq? result 'cancelled)
            (loop))]
         

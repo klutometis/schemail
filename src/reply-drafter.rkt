@@ -11,6 +11,7 @@
 ;; Draft a reply using Claude
 (define (draft-reply message 
                      #:user-email [user-email ""]
+                     #:user-name [user-name ""]
                      #:thread-context [thread-context ""])
   (define from (message-from message))
   (define to (message-header message "To"))
@@ -20,7 +21,7 @@
   (define prompt
     (format "You are an email reply assistant. Draft a professional, concise email reply.
 
-YOU ARE: ~a
+YOU ARE: ~a~a
 
 ORIGINAL EMAIL:
 From: ~a
@@ -36,17 +37,20 @@ INSTRUCTIONS:
 2. Match the tone of the original (formal/casual)
 3. Be concise (2-4 sentences usually)
 4. Address all questions/requests
-5. Output ONLY the reply body, no subject line
+5. Sign with: ~a
+6. Output ONLY the reply body, no subject line
 
 Reply:"
             user-email
+            (if (string=? user-name "") "" (format " (~a)" user-name))
             from
             to
             subject
             body
             (if (string=? thread-context "")
                 ""
-                (format "\nPREVIOUS THREAD CONTEXT:\n~a\n" thread-context))))
+                (format "\nPREVIOUS THREAD CONTEXT:\n~a\n" thread-context))
+            (if (string=? user-name "") "Best" user-name)))
   
   ;; Call Claude API
   (define api-key (getenv "ANTHROPIC_API_KEY"))
