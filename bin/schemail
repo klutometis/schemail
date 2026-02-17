@@ -338,65 +338,11 @@ NOTES:
            [else "in:inbox -label:Schemail"]))
        base-query]))
   
-  ;; Fetch messages (with pagination when needed)
-  (displayln (format "Fetching ~a emails~a..."
+  (displayln (format "Processing ~a emails~a..."
                      (cond [(not last-n) "10"]
                            [(= last-n 0) "all"]
                            [else last-n])
                      (if gmail-query (format " (query: ~a)" gmail-query) "")))
-  
-  ;; Determine if we need pagination
-  (define needs-pagination? 
-    (or (and last-n (= last-n 0))                           ; --last 0 means all
-        (and last-n (> last-n GMAIL-MAX-RESULTS-PER-PAGE)))) ; --last N > max
-  
-  (define message-ids
-    (if needs-pagination?
-        ;; Paginate through messages
-        (let loop ([page-token #f]
-                   [all-ids '()])
-          ;; Calculate how many we still need
-          (define target-count (if (= last-n 0) +inf.0 last-n))
-          (define already-fetched (length all-ids))
-          (define remaining (- target-count already-fetched))
-          
-          ;; Stop if we have enough
-          (when (and (not (infinite? target-count)) (<= remaining 0))
-            all-ids)
-          
-          ;; Determine page size (max 500, or less if we need fewer)
-          (define page-size 
-            (if (infinite? remaining)
-                GMAIL-MAX-RESULTS-PER-PAGE
-                (min remaining GMAIL-MAX-RESULTS-PER-PAGE)))
-          
-          ;; Fetch page
-          (define response (gmail-list-messages #:query gmail-query 
-                                               #:max-results page-size
-                                               #:page-token page-token))
-          (define messages (hash-ref response 'messages '()))
-          (define ids (map (λ (m) (hash-ref m 'id)) messages))
-          (define next-token (hash-ref response 'nextPageToken #f))
-          (define updated-ids (append all-ids ids))
-          
-          ;; Show progress
-          (displayln (format "  ...fetched ~a messages so far..." (length updated-ids)))
-          
-          ;; Continue if there's a next page and we need more
-          (if (and next-token (< (length updated-ids) target-count))
-              (loop next-token updated-ids)
-              updated-ids))
-        ;; Single request (normal behavior for small --last N)
-        (let ([response (gmail-list-messages #:query gmail-query 
-                                            #:max-results (or last-n 100))])
-          (map (λ (m) (hash-ref m 'id))
-               (hash-ref response 'messages '())))))
-  
-  (when (empty? message-ids)
-    (displayln "No messages found!")
-    (exit 0))
-  
-  (displayln (format "Found ~a message(s)\n" (length message-ids)))
   
   ;; Get classifier prompt if using classifier mode
   (define classifier-prompt
@@ -430,36 +376,103 @@ NOTES:
           (get-labels-with-counts #:exclude exclude-list))
         #f))
   
-  ;; Process each message
-  (for ([id message-ids]
-        [i (in-naturals 1)])
-    (displayln (format "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
-    (displayln (format "MESSAGE ~a/~a" i (length message-ids)))
-    (displayln (format "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
-    
-    (define msg (gmail-get-message id))
-    
-    ;; Interactive mode: ask before processing
-    (define should-process?
-      (if interactive?
-          (let ()
-            (displayln "\nPress Enter to process, 's' to skip, 'q' to quit:")
-            (define response (read-line))
-            (cond
-              [(equal? response "q") (exit 0)]
-              [(equal? response "s") #f]
-              [else #t]))
-          #t))
-    
-    (when should-process?
-      (if classifier-prompt
-          ;; Use structured classifier with labels hash and model parameter
-          (parameterize ([current-model model])
-            (classify-email msg classifier-prompt labels-hash #:dry-run? dry-run?))
-          ;; Use filter strategy
-          (process-message-with-filters msg filters #:dry-run? dry-run?))))
+  ;; Helper function to process a batch of message IDs
+  (define (process-message-batch ids batch-start-index)
+    (for ([id ids]
+          [i (in-naturals batch-start-index)])
+      (displayln (format "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
+      (displayln (format "MESSAGE ~a" i))
+      (displayln (format "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
+      
+      (define msg (gmail-get-message id))
+      
+      ;; Interactive mode: ask before processing
+      (define should-process?
+        (if interactive?
+            (let ()
+              (displayln "\nPress Enter to process, 's' to skip, 'q' to quit:")
+              (define response (read-line))
+              (cond
+                [(equal? response "q") (exit 0)]
+                [(equal? response "s") #f]
+                [else #t]))
+            #t))
+      
+      (when should-process?
+        (if classifier-prompt
+            ;; Use structured classifier with labels hash and model parameter
+            (parameterize ([current-model model])
+              (classify-email msg classifier-prompt labels-hash #:dry-run? dry-run?))
+            ;; Use filter strategy
+            (process-message-with-filters msg filters #:dry-run? dry-run?)))))
   
-  (displayln "\n✓ Done processing all messages!")
+  ;; Determine if we need pagination
+  (define needs-pagination? 
+    (or (and last-n (= last-n 0))                           ; --last 0 means all
+        (and last-n (> last-n GMAIL-MAX-RESULTS-PER-PAGE)))) ; --last N > max
+  
+  ;; Process in batches (fetch page → process page → repeat)
+  (define total-processed
+    (if needs-pagination?
+        ;; Paginate and process in batches
+        (let loop ([page-token #f]
+                   [processed-count 0])
+          ;; Calculate how many we still need
+          (define target-count (if (= last-n 0) +inf.0 last-n))
+          (define remaining (- target-count processed-count))
+          
+          ;; Stop if we have enough
+          (when (and (not (infinite? target-count)) (<= remaining 0))
+            processed-count)
+          
+          ;; Determine page size (max 500, or less if we need fewer)
+          (define page-size 
+            (if (infinite? remaining)
+                GMAIL-MAX-RESULTS-PER-PAGE
+                (min remaining GMAIL-MAX-RESULTS-PER-PAGE)))
+          
+          ;; Fetch page
+          (displayln (format "\n📥 Fetching batch (processed ~a so far)..." processed-count))
+          (define response (gmail-list-messages #:query gmail-query 
+                                               #:max-results page-size
+                                               #:page-token page-token))
+          (define messages (hash-ref response 'messages '()))
+          
+          ;; Exit if no messages
+          (when (empty? messages)
+            (when (= processed-count 0)
+              (displayln "No messages found!")
+              (exit 0))
+            processed-count)
+          
+          (define ids (map (λ (m) (hash-ref m 'id)) messages))
+          (define next-token (hash-ref response 'nextPageToken #f))
+          
+          (displayln (format "✓ Fetched ~a messages in this batch, processing now..." (length ids)))
+          
+          ;; Process this batch immediately
+          (process-message-batch ids (+ processed-count 1))
+          
+          (define new-processed-count (+ processed-count (length ids)))
+          (displayln (format "\n✓ Batch complete! Total processed: ~a" new-processed-count))
+          
+          ;; Continue if there's a next page and we need more
+          (if (and next-token (< new-processed-count target-count))
+              (loop next-token new-processed-count)
+              new-processed-count))
+        ;; Single request (normal behavior for small --last N)
+        (let* ([response (gmail-list-messages #:query gmail-query 
+                                             #:max-results (or last-n 100))]
+               [messages (hash-ref response 'messages '())]
+               [ids (map (λ (m) (hash-ref m 'id)) messages)])
+          (when (empty? ids)
+            (displayln "No messages found!")
+            (exit 0))
+          (displayln (format "Found ~a message(s)\n" (length ids)))
+          (process-message-batch ids 1)
+          (length ids))))
+  
+  (displayln (format "\n✓ Done! Processed ~a message(s) total" total-processed))
   
   ;; Apply label colors if configured (and not in dry-run mode)
   (unless dry-run?
