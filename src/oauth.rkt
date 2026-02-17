@@ -155,10 +155,16 @@
                                          (authorize-gmail))])
               (displayln "Access token expired, refreshing...")
               (define refreshed (refresh-token (make-gmail-client) stored-token))
-              (set-token! user-name "gmail" refreshed)
+              ;; Google doesn't return refresh_token in refresh response, so preserve the old one
+              (define refreshed-with-refresh-token
+                (if (token-refresh-token refreshed)
+                    refreshed  ; New token has refresh token (unlikely but handle it)
+                    (struct-copy token refreshed
+                                 [refresh-token (token-refresh-token stored-token)])))
+              (set-token! user-name "gmail" refreshed-with-refresh-token)
               (save-tokens)  ; Persist refreshed token
               (displayln "✓ Token refreshed successfully")
-              refreshed)
+              refreshed-with-refresh-token)
             stored-token)
         (begin
           (displayln "No stored token found. Authorizing...")
