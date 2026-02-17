@@ -1,6 +1,7 @@
 #lang racket
 
 (require "oauth.rkt"
+         oauth2
          oauth2/storage/tokens)
 
 (displayln "=== Testing Token Refresh ===\n")
