@@ -1,0 +1,277 @@
+#!/usr/bin/env racket
+#lang racket
+
+;; schemail-flow - Interactive email processing with AI replies
+
+(require "../src/oauth.rkt"
+         "../src/gmail.rkt"
+         "../src/email-sender.rkt"
+         "../src/reply-drafter.rkt"
+         "../src/llm-classifier.rkt")
+
+;; Configuration
+(define user-name #f)  ; Will be passed to AI if set
+(define batch-size 50)
+
+;; Clear screen (Unix-only for now)
+(define (clear-screen)
+  (system "clear"))
+
+;; Get single keypress
+(define (read-key)
+  (system "stty raw -echo")
+  (define key (read-char))
+  (system "stty -raw echo")
+  key)
+
+;; Get the To address from message (which address it was sent to)
+(define (message-to message)
+  (message-header message "To"))
+
+;; Display email
+(define (display-email msg index total labels)
+  (clear-screen)
+  (displayln "╔════════════════════════════════════════════════════════════╗")
+  (displayln (format "║  Email ~a/~a~a║" 
+                     index 
+                     total
+                     (make-string (max 0 (- 46 (string-length (format "~a" index)) 
+                                             (string-length (format "~a" total)))) 
+                                 #\space)))
+  (displayln "╚════════════════════════════════════════════════════════════╝")
+  (displayln "")
+  (displayln (format "From:    ~a" (message-from msg)))
+  (displayln (format "Subject: ~a" (message-subject msg)))
+  (displayln (format "Date:    ~a" (message-date msg)))
+  
+  ;; Show existing labels
+  (define label-ids (hash-ref msg 'labelIds '()))
+  (define user-labels 
+    (filter (λ (id) 
+              (and (not (member id '("INBOX" "UNREAD" "IMPORTANT" "CATEGORY_PERSONAL")))
+                   (not (string-prefix? id "Label_"))))
+            label-ids))
+  (when (not (empty? user-labels))
+    (displayln (format "Labels:  ~a" (string-join 
+                                      (map (λ (id) 
+                                             (hash-ref labels id id))
+                                           user-labels)
+                                      ", "))))
+  
+  (displayln "")
+  (displayln "────────────────────────────────────────────────────────────")
+  (displayln "")
+  
+  ;; Show body (truncated)
+  (define body (get-email-body msg))
+  (if (or (string-contains? body "[No") 
+          (string-contains? body "[HTML"))
+      ;; Special case: no text or HTML only
+      (displayln body)
+      ;; Normal: show truncated
+      (let ([lines (string-split body "\n")])
+        (define display-lines (take lines (min 15 (length lines))))
+        (for ([line display-lines])
+          (displayln (if (> (string-length line) 70)
+                         (string-append (substring line 0 70) "...")
+                         line)))
+        
+        (when (> (length lines) 15)
+          (displayln "\n[... message continues ...]"))))
+  
+  (displayln "")
+  (displayln "────────────────────────────────────────────────────────────")
+  (displayln "")
+  (displayln "Actions:")
+  (displayln "  [r] Reply with AI draft    [a] Archive only")
+  (displayln "  [s] Skip to next           [q] Quit")
+  (displayln "")
+  (display "Action: ")
+  (flush-output))
+
+;; Display draft reply
+(define (display-draft draft)
+  (clear-screen)
+  (displayln "╔════════════════════════════════════════════════════════════╗")
+  (displayln "║  Draft Reply                                               ║")
+  (displayln "╚════════════════════════════════════════════════════════════╝")
+  (displayln "")
+  (displayln draft)
+  (displayln "")
+  (displayln "────────────────────────────────────────────────────────────")
+  (displayln "")
+  (displayln "Actions:")
+  (displayln "  [e] Edit in $EDITOR        [s] Send & Archive")
+  (displayln "  [c] Cancel")
+  (displayln "")
+  (display "Action: ")
+  (flush-output))
+
+;; Edit draft in $EDITOR
+(define (edit-in-editor draft)
+  (define tmpfile "/tmp/schemail-draft.txt")
+  (with-output-to-file tmpfile
+    #:exists 'replace
+    (λ () (display draft)))
+  
+  (define editor (or (getenv "EDITOR") "nano"))
+  (system (format "~a ~a" editor tmpfile))
+  
+  (with-input-from-file tmpfile
+    (λ () (port->string (current-input-port)))))
+
+;; Handle reply action
+(define (handle-reply msg user-email)
+  (displayln "\nGenerating reply with Claude...")
+  (flush-output)
+  
+  (define draft (draft-reply msg #:user-email user-email))
+  
+  (let loop ()
+    (display-draft draft)
+    (define action (read-key))
+    (displayln (format "\n~a" action))
+    
+    (case action
+      [(#\e)
+       ;; Edit in $EDITOR
+       (define edited (edit-in-editor draft))
+       (set! draft edited)
+       (loop)]
+      
+      [(#\s)
+       ;; Send and archive
+       (displayln "\nSending email...")
+       (flush-output)
+       
+       (define thread-id (hash-ref msg 'threadId #f))
+       (define msg-id (hash-ref msg 'id))
+       
+       ;; Build subject (Re: original)
+       (define original-subject (message-subject msg))
+       (define reply-subject
+         (if (string-prefix? original-subject "Re:")
+             original-subject
+             (string-append "Re: " original-subject)))
+       
+       ;; Determine From address - use the To address from original
+       ;; This handles multiple email addresses (personal/work/etc)
+       (define reply-from (or (message-to msg) user-email))
+       (displayln (format "  From: ~a" reply-from))
+       (displayln (format "  To: ~a" (message-from msg)))
+       (flush-output)
+       
+       ;; Send
+       (gmail-send-email 
+        #:from reply-from
+        #:to (message-from msg)
+        #:subject reply-subject
+        #:body draft
+        #:thread-id thread-id
+        #:in-reply-to msg-id)
+       
+       (displayln "✓ Sent")
+       
+       ;; Archive
+       (displayln "Archiving...")
+       (gmail-modify-message msg-id #:remove-labels '("INBOX"))
+       (displayln "✓ Archived")
+       'done]
+      
+      [(#\c)
+       ;; Cancel
+       'cancelled]
+      
+      [else
+       (loop)])))
+
+;; Handle archive action
+(define (handle-archive msg)
+  (define msg-id (hash-ref msg 'id))
+  (displayln "\nArchiving...")
+  (gmail-modify-message msg-id #:remove-labels '("INBOX"))
+  (displayln "✓ Archived"))
+
+;; Main loop
+(define (run-flow)
+  (displayln "Schemail Flow - Interactive Email Processing")
+  (displayln "Loading...")
+  (displayln "")
+  
+  ;; Get OAuth token
+  (get-gmail-token)
+  
+  ;; Get user email
+  (define user-email (gmail-get-user-email))
+  (displayln (format "Logged in as: ~a" user-email))
+  (displayln "")
+  
+  ;; Fetch inbox messages (already processed/labeled by daemon)
+  (displayln "Fetching emails from inbox...")
+  (define messages-response 
+    (gmail-list-messages #:query "in:inbox" 
+                        #:max-results batch-size))
+  
+  (define message-ids 
+    (map (λ (m) (hash-ref m 'id))
+         (hash-ref messages-response 'messages '())))
+  
+  (when (empty? message-ids)
+    (displayln "No messages found in inbox!")
+    (exit 0))
+  
+  (displayln (format "Found ~a message(s)" (length message-ids)))
+  (displayln "")
+  
+  ;; Fetch labels for display
+  (define labels-response (gmail-list-labels))
+  (define labels 
+    (for/hash ([label (hash-ref labels-response 'labels '())])
+      (values (hash-ref label 'id)
+              (hash-ref label 'name))))
+  
+  ;; Process each message
+  (for ([id message-ids]
+        [i (in-naturals 1)])
+    (define msg (gmail-get-message id))
+    
+    (let loop ()
+      (display-email msg i (length message-ids) labels)
+      (define action (read-key))
+      (displayln (format "\n~a" action))
+      
+      (case action
+        [(#\r)
+         ;; Reply
+         (define result (handle-reply msg user-email))
+         (when (eq? result 'cancelled)
+           (loop))]
+        
+        [(#\a)
+         ;; Archive
+         (handle-archive msg)]
+        
+        [(#\s)
+         ;; Skip
+         (void)]
+        
+        [(#\q)
+         ;; Quit
+         (displayln "\nGoodbye!")
+         (exit 0)]
+        
+        [else
+         ;; Unknown key, loop
+         (loop)])))
+  
+  (clear-screen)
+  (displayln "╔════════════════════════════════════════════════════════════╗")
+  (displayln "║  All Done!                                                 ║")
+  (displayln "╚════════════════════════════════════════════════════════════╝")
+  (displayln "")
+  (displayln (format "Processed ~a emails" (length message-ids)))
+  (displayln ""))
+
+;; Entry point
+(module+ main
+  (run-flow))
