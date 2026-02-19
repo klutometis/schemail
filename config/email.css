@@ -1,0 +1,59 @@
+/* Email stylesheet for schemail HTML messages.
+   Applied via pandoc --standalone, then inlined by css-inline.
+   Gmail strips <style> tags, so everything must end up as style= attributes. */
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #222;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+p {
+  margin: 0 0 1em 0;
+}
+
+blockquote {
+  border-left: 3px solid #ccc;
+  margin: 0 0 1em 0;
+  padding: 0.25em 0 0.25em 1em;
+  color: #555;
+}
+
+blockquote p {
+  margin: 0;
+}
+
+pre {
+  background: #f4f4f4;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  padding: 0.75em 1em;
+  overflow: auto;
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0 0 1em 0;
+}
+
+code {
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+  background: #f4f4f4;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 13px;
+}
+
+pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+a {
+  color: #0070c9;
+}

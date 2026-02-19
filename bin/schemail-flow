@@ -141,18 +141,79 @@
   (display "Action: ")
   (flush-output))
 
-;; Edit draft in $EDITOR
-(define (edit-in-editor draft)
-  (define tmpfile "/tmp/schemail-draft.txt")
+;; Sentinel line separating draft from original reference
+(define ORIGINAL-SENTINEL "-- \nEdit above. Original for reference:\n")
+
+;; Quote a string with > prefix on each line
+(define (quote-lines text)
+  (string-join
+   (map (λ (line) (string-append "> " line))
+        (string-split text "\n" #:trim? #f))
+   "\n"))
+
+;; Extract display name from a From: header value.
+;; "Peter Danenberg <peter@...>"     → "Peter Danenberg"
+;; "\"Peter Danenberg\" <peter@...>" → "Peter Danenberg"
+;; "peter@danenberg.ai"              → "peter@danenberg.ai"
+(define (extract-display-name header-value)
+  (cond
+    [(not header-value) ""]
+    ;; Quoted display name: "Foo Bar" <addr>
+    [(regexp-match #rx"^\"([^\"]+)\"[ ]*<" header-value)
+     => (λ (m) (string-trim (cadr m)))]
+    ;; Unquoted display name: Foo Bar <addr>
+    [(regexp-match #rx"^([^<]+)<" header-value)
+     => (λ (m) (string-trim (cadr m)))]
+    [else (string-trim header-value)]))
+
+;; Shorten an RFC 2822 date to "Thu, 19 Feb 2026" (or "19 Feb 2026" if no day-of-week).
+;; Keeps tokens up to and including the 4-digit year.
+(define (short-date date-str)
+  (if (not date-str)
+      ""
+      (let* ([tokens (string-split date-str)]
+             [year-idx (for/first ([t tokens] [i (in-naturals)]
+                                  #:when (regexp-match? #px"^[0-9]{4}$" t))
+                         i)])
+        (if year-idx
+            (string-join (take tokens (+ year-idx 1)) " ")
+            (string-join (take tokens (min 4 (length tokens))) " ")))))
+
+;; Build a prose attribution line for the quoted block
+;; Produces: > *Peter Danenberg wrote on Thu, 19 Feb 2026:*
+(define (make-attribution msg)
+  (define name (extract-display-name (message-from msg)))
+  (define date (short-date (message-date msg)))
+  (format "> *~a wrote on ~a:*" name date))
+
+;; Edit draft in $EDITOR, with original email appended for reference
+;; Strips everything from the sentinel line downward before returning
+(define (edit-in-editor draft msg)
+  (define tmpfile "/tmp/schemail-draft.md")
+  (define original-body (get-email-body msg))
+
   (with-output-to-file tmpfile
     #:exists 'replace
-    (λ () (display draft)))
+    (λ ()
+      (display draft)
+      (display "\n\n")
+      (display ORIGINAL-SENTINEL)
+      (display "\n")
+      (display (make-attribution msg))
+      (display "\n>\n")
+      (display (quote-lines original-body))))
   
   (define editor (or (getenv "EDITOR") "nano"))
   (system (format "~a ~a" editor tmpfile))
   
-  (with-input-from-file tmpfile
-    (λ () (port->string (current-input-port)))))
+  ;; Read back and strip sentinel + everything below
+  (define full (with-input-from-file tmpfile
+                 (λ () (port->string (current-input-port)))))
+  (define sentinel-match (regexp-match-positions (regexp-quote ORIGINAL-SENTINEL) full))
+  (define trimmed (if sentinel-match
+                      (string-trim (substring full 0 (caar sentinel-match)) #:left? #f)
+                      (string-trim full #:left? #f)))
+  trimmed)
 
 ;; Compute reply envelope from message and user info
 ;; Always computes potential-cc for display purposes; cc is only used when sending reply-all
@@ -209,7 +270,7 @@
     
     (case action
       [(#\e)
-       (set! draft (edit-in-editor draft))
+       (set! draft (edit-in-editor draft msg))
        (loop)]
       
       [(#\s #\a)

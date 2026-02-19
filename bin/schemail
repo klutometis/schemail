@@ -37,6 +37,7 @@ USAGE:
   schemail process [OPTIONS]     Process emails through filters
   schemail daemon [OPTIONS]      Run as daemon (polls for new emails)
   schemail labels [OPTIONS]      Manage Gmail labels
+  schemail archive-all [--yes]   Archive all inbox messages (inbox bankruptcy)
   schemail test                  Run test suite
   schemail help                  Show this help
 
@@ -91,7 +92,14 @@ LABELS OPTIONS:
   cleanup                   Delete all experiment labels (keeps excluded labels)
                             Useful for cleaning up between experiments
 
+ARCHIVE-ALL OPTIONS:
+  --yes                     Skip confirmation prompt
+
 EXAMPLES:
+  # Declare inbox bankruptcy (archive everything)
+  schemail archive-all
+  schemail archive-all --yes   # no confirmation prompt
+
   # Dry-run on last 10 emails (safe)
   schemail process --last 10
   
@@ -163,6 +171,7 @@ NOTES:
   (hash-set! options 'include-processed? #f)
   (hash-set! options 'color-scheme #f)
   (hash-set! options 'recent-only? #f)
+  (hash-set! options 'yes? #f)
   
   (let loop ([args args])
     (match args
@@ -179,6 +188,9 @@ NOTES:
        (loop rest)]
       [(list "test" rest ...)
        (hash-set! options 'command 'test)
+       (loop rest)]
+      [(list "archive-all" rest ...)
+       (hash-set! options 'command 'archive-all)
        (loop rest)]
       [(list "labels" "hide-except" prefix rest ...)
        (hash-set! options 'command 'labels-hide-except)
@@ -271,6 +283,9 @@ NOTES:
        (loop rest)]
       [(list "--recent-only" rest ...)
        (hash-set! options 'recent-only? #t)
+       (loop rest)]
+      [(list "--yes" rest ...)
+       (hash-set! options 'yes? #t)
        (loop rest)]
       
       [else
@@ -678,6 +693,55 @@ NOTES:
   (get-gmail-token)
   (cleanup-experiment-labels!))
 
+;; Archive all inbox messages (inbox bankruptcy)
+(define (cmd-archive-all options)
+  (displayln "\n╔════════════════════════════════════════════════════════════╗")
+  (displayln "║  Archive All Inbox Messages                                ║")
+  (displayln "╚════════════════════════════════════════════════════════════╝\n")
+
+  (get-gmail-token)
+
+  ;; Get an estimate of inbox size from resultSizeEstimate
+  (display "Counting inbox messages... ")
+  (flush-output)
+  (define probe (gmail-list-messages #:query "in:inbox" #:max-results 1))
+  (define estimate (hash-ref probe 'resultSizeEstimate 0))
+  (displayln (format "~a (estimated)" estimate))
+
+  ;; Confirm unless --yes
+  (define yes? (hash-ref options 'yes?))
+  (unless yes?
+    (display (format "\nArchive all ~a inbox messages? [y/N] " estimate))
+    (flush-output)
+    (define answer (read-line))
+    (unless (member answer '("y" "Y" "yes" "Yes" "YES"))
+      (displayln "Cancelled.")
+      (exit 0)))
+
+  (displayln "\nArchiving...")
+
+  ;; Page through inbox, batch-archive each page of 500
+  (let loop ([page-token #f]
+             [archived 0])
+    (define response (gmail-list-messages #:query "in:inbox"
+                                          #:max-results 500
+                                          #:page-token page-token))
+    (define messages (hash-ref response 'messages '()))
+    (cond
+      [(empty? messages)
+       (displayln (format "\nDone! Archived ~a messages." archived))]
+      [else
+       (define ids (map (λ (m) (hash-ref m 'id)) messages))
+       ;; batchModify accepts up to 1000; our pages are 500 so one call suffices
+       (gmail-batch-modify ids #:remove-labels '("INBOX"))
+       (define new-archived (+ archived (length ids)))
+       (display (format "\r  Archived ~a..." new-archived))
+       (flush-output)
+       (define next-token (hash-ref response 'nextPageToken #f))
+       (if next-token
+           (loop next-token new-archived)
+           (displayln (format "\n\nDone! Archived ~a messages." new-archived)))])))
+
 ;; ============================================================================
 ;; Main Entry Point
 ;; ============================================================================
@@ -698,6 +762,7 @@ NOTES:
   (match command
     ['process (cmd-process options)]
     ['daemon (cmd-daemon options)]
+    ['archive-all (cmd-archive-all options)]
     ['labels-hide-except (cmd-labels-hide-except options)]
     ['labels-assign-colors (cmd-labels-assign-colors options)]
     ['labels-cleanup (cmd-labels-cleanup options)]
