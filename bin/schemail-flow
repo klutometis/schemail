@@ -29,6 +29,27 @@
 (define (message-delivered-to message)
   (message-header message "Delivered-To"))
 
+;; Extract bare email address from a header value that may contain a display name
+;; e.g. "Alice Example <alice@example.com>" -> "alice@example.com"
+;;      "alice@example.com"                  -> "alice@example.com"
+(define (extract-address header-value)
+  (cond
+    [(not header-value) #f]
+    [(regexp-match #rx"<([^>]+)>" header-value) => cadr]
+    [else (string-trim header-value)]))
+
+;; Split a header containing multiple addresses (comma-separated) into a list
+;; Preserves decorated form: "Alice <a@x.com>, Bob <b@y.com>" -> '("Alice <a@x.com>" "Bob <b@y.com>")
+;; Bare addresses also work: "a@x.com, b@y.com" -> '("a@x.com" "b@y.com")
+(define (split-addresses header-value)
+  (if (not header-value)
+      '()
+      (map string-trim (string-split header-value ","))))
+
+;; Extract bare addresses from a header (for comparison purposes)
+(define (extract-addresses header-value)
+  (filter-map extract-address (split-addresses header-value)))
+
 ;; Display email
 (define (display-email msg index total labels)
   (clear-screen)
@@ -42,6 +63,10 @@
   (displayln "╚════════════════════════════════════════════════════════════╝")
   (displayln "")
   (displayln (format "From:    ~a" (message-from msg)))
+  (let ([to (message-header msg "To")])
+    (when to (displayln (format "To:      ~a" to))))
+  (let ([cc (message-header msg "Cc")])
+    (when cc (displayln (format "Cc:      ~a" cc))))
   (displayln (format "Subject: ~a" (message-subject msg)))
   (displayln (format "Date:    ~a" (message-date msg)))
   
@@ -91,11 +116,19 @@
   (flush-output))
 
 ;; Display draft reply
-(define (display-draft draft)
+(define (display-draft draft envelope)
   (clear-screen)
   (displayln "╔════════════════════════════════════════════════════════════╗")
   (displayln "║  Draft Reply                                               ║")
   (displayln "╚════════════════════════════════════════════════════════════╝")
+  (displayln "")
+  (displayln (format "  From:    ~a" (hash-ref envelope 'from)))
+  (displayln (format "  To:      ~a" (hash-ref envelope 'to)))
+  (when (hash-ref envelope 'potential-cc #f)
+    (displayln (format "  Cc [a]:  ~a" (hash-ref envelope 'potential-cc))))
+  (displayln (format "  Subject: ~a" (hash-ref envelope 'subject)))
+  (displayln "")
+  (displayln "────────────────────────────────────────────────────────────")
   (displayln "")
   (displayln draft)
   (displayln "")
@@ -103,7 +136,7 @@
   (displayln "")
   (displayln "Actions:")
   (displayln "  [e] Edit in $EDITOR        [s] Send & Archive")
-  (displayln "  [c] Cancel")
+  (displayln "  [a] Reply-All & Archive    [c] Cancel")
   (displayln "")
   (display "Action: ")
   (flush-output))
@@ -121,69 +154,85 @@
   (with-input-from-file tmpfile
     (λ () (port->string (current-input-port)))))
 
+;; Compute reply envelope from message and user info
+;; Always computes potential-cc for display purposes; cc is only used when sending reply-all
+(define (make-envelope msg user-email user-display-name #:reply-all? [reply-all? #f])
+  (define original-subject (message-subject msg))
+  (define subject
+    (if (string-prefix? original-subject "Re:")
+        original-subject
+        (string-append "Re: " original-subject)))
+  ;; From: Delivered-To > To header > OAuth email
+  (define reply-email (or (extract-address (message-delivered-to msg))
+                          (extract-address (message-header msg "To"))
+                          user-email))
+  (define from (format-email-with-name reply-email user-display-name))
+  ;; To: Reply-To if present, otherwise From
+  (define to (or (message-header msg "Reply-To")
+                 (message-from msg)))
+  ;; Potential Cc: original To + Cc minus our address and the To: recipient
+  ;; Keep decorated form for display/sending; use bare addresses only for filtering
+  (define to-addr (extract-address to))
+  (define potential-cc
+    (let* ([all-decorated (append (split-addresses (message-header msg "To"))
+                                  (split-addresses (message-header msg "Cc")))]
+           [others (filter (λ (decorated)
+                             (define addr (extract-address decorated))
+                             (and addr
+                                  (not (string-ci=? addr reply-email))
+                                  (not (string-ci=? addr to-addr))))
+                           all-decorated)])
+      (and (not (null? others))
+           (string-join others ", "))))
+  ;; Cc only included when actually sending reply-all
+  (hash 'from from 'to to 'cc (and reply-all? potential-cc)
+        'potential-cc potential-cc
+        'subject subject
+        'thread-id (hash-ref msg 'threadId #f)
+        'msg-id    (hash-ref msg 'id)))
+
 ;; Handle reply action
 (define (handle-reply msg user-email user-display-name)
   (displayln "\nGenerating reply with Claude...")
   (flush-output)
   
-  (define draft (draft-reply msg 
-                            #:user-email user-email
-                            #:user-name (or user-display-name "")))
+  (define draft (draft-reply msg
+                             #:user-email user-email
+                             #:user-name (or user-display-name "")))
   
+  (define envelope (make-envelope msg user-email user-display-name))
+
   (let loop ()
-    (display-draft draft)
+    (display-draft draft envelope)
     (define action (read-key))
     (displayln (format "\n~a" action))
     
     (case action
       [(#\e)
-       ;; Edit in $EDITOR
-       (define edited (edit-in-editor draft))
-       (set! draft edited)
+       (set! draft (edit-in-editor draft))
        (loop)]
       
-      [(#\s)
-       ;; Send and archive
-       (displayln "\nSending email...")
+      [(#\s #\a)
+       (define env (if (char=? action #\a)
+                       (make-envelope msg user-email user-display-name #:reply-all? #t)
+                       envelope))
+       (displayln (if (char=? action #\a) "\nSending reply-all..." "\nSending..."))
        (flush-output)
-       
-       (define thread-id (hash-ref msg 'threadId #f))
-       (define msg-id (hash-ref msg 'id))
-       
-       ;; Build subject (Re: original)
-       (define original-subject (message-subject msg))
-       (define reply-subject
-         (if (string-prefix? original-subject "Re:")
-             original-subject
-             (string-append "Re: " original-subject)))
-       
-        ;; Determine From address - use Delivered-To (handles To/Cc/Bcc correctly)
-        ;; Delivered-To always contains the actual recipient address (even if CC'd/BCC'd)
-        (define reply-email (or (message-delivered-to msg) user-email))
-        (define reply-from (format-email-with-name reply-email user-display-name))
-        (displayln (format "  From: ~a" reply-from))
-       (displayln (format "  To: ~a" (message-from msg)))
-       (flush-output)
-       
-       ;; Send
-       (gmail-send-email 
-        #:from reply-from
-        #:to (message-from msg)
-        #:subject reply-subject
-        #:body draft
-        #:thread-id thread-id
-        #:in-reply-to msg-id)
-       
+       (gmail-send-email
+        #:from       (hash-ref env 'from)
+        #:to         (hash-ref env 'to)
+        #:cc         (hash-ref env 'cc #f)
+        #:subject    (hash-ref env 'subject)
+        #:body       draft
+        #:thread-id  (hash-ref env 'thread-id #f)
+        #:in-reply-to (hash-ref env 'msg-id))
        (displayln "✓ Sent")
-       
-       ;; Archive
        (displayln "Archiving...")
-       (gmail-modify-message msg-id #:remove-labels '("INBOX"))
+       (gmail-modify-message (hash-ref env 'msg-id) #:remove-labels '("INBOX"))
        (displayln "✓ Archived")
        'done]
       
       [(#\c)
-       ;; Cancel
        'cancelled]
       
       [else

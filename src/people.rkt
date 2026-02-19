@@ -50,7 +50,7 @@
         (hash-ref (first names) 'givenName #f))))
 
 ;; Format email address with display name
-;; "Peter Danenberg <peter@danenberg.ai>"
+;; "Alice Example <alice@example.com>"
 (define (format-email-with-name email [name #f])
   (if (and name (not (string=? name "")))
       (format "~a <~a>" name email)

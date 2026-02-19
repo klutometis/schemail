@@ -12,8 +12,8 @@ Added support for Google People API to get your display name for email signature
 2. **Better reply-from addresses**
    - Uses "Delivered-To" header (handles To/Cc/Bcc correctly)
    - Includes your display name in From field
-   - Before: `peter@danenberg.ai`
-   - After: `Peter Danenberg <peter@danenberg.ai>`
+   - Before: `you@example.com`
+   - After: `Your Name <you@example.com>`
 
 3. **Improved AI signatures**
    - Claude now knows your actual name
@@ -24,8 +24,6 @@ Added support for Google People API to get your display name for email signature
 The new People API scope requires re-authorization:
 
 ```bash
-cd /home/danenberg/prg/email
-
 # Delete existing token to force re-auth
 rm ~/.oauth2.rkt/tokens
 
@@ -46,22 +44,22 @@ The code now uses the "Delivered-To" header instead of "To":
 
 **Problem with "To" header:**
 - Email to: `john@example.com`
-- CC: `peter@danenberg.ai`
+- CC: `you@example.com`
 - "To" header: `john@example.com` ❌ (would reply as John!)
 
 **Solution with "Delivered-To":**
-- "Delivered-To" header: `peter@danenberg.ai` ✓ (correct!)
+- "Delivered-To" header: `you@example.com` ✓ (correct!)
 
 ### Display Name
 
 ```racket
 ;; Fetch from People API
 (define user-display-name (people-get-display-name))
-;; => "Peter Danenberg"
+;; => "Your Name"
 
 ;; Format with email
-(format-email-with-name "peter@danenberg.ai" user-display-name)
-;; => "Peter Danenberg <peter@danenberg.ai>"
+(format-email-with-name "you@example.com" user-display-name)
+;; => "Your Name <you@example.com>"
 ```
 
 ### AI Integration
@@ -69,18 +67,18 @@ The code now uses the "Delivered-To" header instead of "To":
 The reply drafter now receives your name:
 
 ```racket
-(draft-reply msg 
-            #:user-email "peter@danenberg.ai"
-            #:user-name "Peter Danenberg")
+(draft-reply msg
+             #:user-email "you@example.com"
+             #:user-name "Your Name")
 ```
 
 Claude's prompt includes:
 ```
-YOU ARE: peter@danenberg.ai (Peter Danenberg)
+YOU ARE: you@example.com (Your Name)
 
 INSTRUCTIONS:
 ...
-5. Sign with: Peter Danenberg
+5. Sign with: Your Name
 ```
 
 ## Fallback Behavior
@@ -99,11 +97,11 @@ After re-authorizing:
 racket -e "(require \"src/people.rkt\" \"src/oauth.rkt\") \
            (get-gmail-token) \
            (displayln (people-get-display-name))"
-# Should output: Peter Danenberg
+# Should output: Your Name
 
 # Test schemail-flow
 bin/schemail-flow
-# Should show: Logged in as: peter@danenberg.ai (Peter Danenberg)
+# Should show: Logged in as: you@example.com (Your Name)
 ```
 
 ## Files Changed

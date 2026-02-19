@@ -5,3 +5,6 @@ config/tokens.json
 
 # OAuth tokens stored by simple-oauth2
 .oauth2.rkt/
+
+# Racket compiled bytecode
+compiled/

@@ -10,15 +10,17 @@
 
 ;; Build RFC 2822 email message
 (define (build-email-message #:from from
-                            #:to to
-                            #:subject subject
-                            #:body body
-                            #:in-reply-to [in-reply-to #f]
-                            #:references [references #f])
+                             #:to to
+                             #:subject subject
+                             #:body body
+                             #:cc [cc #f]
+                             #:in-reply-to [in-reply-to #f]
+                             #:references [references #f])
   (define headers
     (string-append
      (format "From: ~a\r\n" from)
      (format "To: ~a\r\n" to)
+     (if cc (format "Cc: ~a\r\n" cc) "")
      (format "Subject: ~a\r\n" subject)
      (if in-reply-to
          (format "In-Reply-To: ~a\r\n" in-reply-to)
@@ -44,17 +46,19 @@
 
 ;; Send email via Gmail API
 (define (gmail-send-email #:from from
-                         #:to to
-                         #:subject subject
-                         #:body body
-                         #:thread-id [thread-id #f]
-                         #:in-reply-to [in-reply-to #f]
-                         #:references [references #f])
+                          #:to to
+                          #:subject subject
+                          #:body body
+                          #:cc [cc #f]
+                          #:thread-id [thread-id #f]
+                          #:in-reply-to [in-reply-to #f]
+                          #:references [references #f])
   (define message-str
     (build-email-message #:from from
                         #:to to
                         #:subject subject
                         #:body body
+                        #:cc cc
                         #:in-reply-to in-reply-to
                         #:references references))
   

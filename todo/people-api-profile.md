@@ -5,7 +5,7 @@
 When drafting email replies, we need the user's actual name for signatures. Currently we have no good way to get this.
 
 **Bad approaches (do NOT use):**
-- ❌ Extract from email address (unreliable - `peter@danenberg.ai` could be anyone)
+- ❌ Extract from email address (unreliable - `you@example.com` could be anyone)
 - ❌ Ask user to set `USER_NAME` env var (annoying manual config)
 - ❌ Let Claude "figure it out" from email (impossible/unreliable)
 
@@ -65,7 +65,7 @@ Add to existing scopes in `src/oauth.rkt`:
           "id": "1234567890"
         }
       },
-      "value": "peter@danenberg.ai"
+      "value": "you@example.com"
     }
   ]
 }

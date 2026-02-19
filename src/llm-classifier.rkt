@@ -63,6 +63,15 @@
 ;; Claude API with Structured Output
 ;; ============================================================================
 
+;; Check if an exception is a transient error that should be retried
+(define (transient-api-error? exn)
+  (define msg (exn-message exn))
+  (or (regexp-match? #rx"timed out" msg)           ; Catches "connect timed out", "request timed out", "Connection timed out"
+      (regexp-match? #rx"[Cc]onnection reset" msg)
+      (regexp-match? #rx"[Cc]onnection refused" msg)
+      (regexp-match? #rx"Network is unreachable" msg)
+      (regexp-match? #rx"error reading from stream" msg)))
+
 ;; Call Claude API with structured output
 (define (claude-classify message prompt labels-hash)
   (define email-text (format-email-for-llm message))
@@ -90,12 +99,28 @@
   (displayln "\n=== Calling Claude API (Classifier) ===")
   (displayln (format "Model: ~a" (current-model)))
   
-  (define response
-    (post CLAUDE-API-URL
-          #:headers (hash 'x-api-key ANTHROPIC-API-KEY
-                         'anthropic-version "2023-06-01"
-                         'content-type "application/json")
-          #:data (jsexpr->string request-body)))
+  ;; Retry loop with exponential backoff for transient errors
+  (define (attempt retry-count max-retries base-delay)
+    (with-handlers ([exn:fail?
+                     (λ (exn)
+                       (if (and (transient-api-error? exn)
+                                (< retry-count max-retries))
+                           (let ([delay (* base-delay (expt 2 retry-count))])
+                             (displayln (format "⚠ API error: ~a" (exn-message exn)))
+                             (displayln (format "→ Retrying in ~a seconds (attempt ~a/~a)..."
+                                               delay
+                                               (+ retry-count 1)
+                                               max-retries))
+                             (sleep delay)
+                             (attempt (+ retry-count 1) max-retries base-delay))
+                           (raise exn)))])
+      (post CLAUDE-API-URL
+            #:headers (hash 'x-api-key ANTHROPIC-API-KEY
+                           'anthropic-version "2023-06-01"
+                           'content-type "application/json")
+            #:data (jsexpr->string request-body))))
+  
+  (define response (attempt 0 3 2))  ;; max 3 retries, 2s base delay
   
   (unless (= (response-status-code response) 200)
     (error 'claude-classify

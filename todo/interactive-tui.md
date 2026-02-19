@@ -18,7 +18,7 @@ A keyboard-driven TUI (Terminal User Interface) for processing inbox emails with
 Email 1/42
 
 From: alice@example.com
-To: peter@danenberg.name
+To: you@example.com
 Date: 2026-02-16 14:32
 Subject: Quick question about the proposal
 
@@ -332,8 +332,8 @@ Output ONLY the reply body, no subject line.")
 ;; config/tui.rkt
 
 ;; User info for reply drafting
-(define user-name "Peter Danenberg")
-(define user-email "peter@danenberg.name")
+(define user-name "Your Name")
+(define user-email "you@example.com")
 
 ;; Reply snippets (Ctrl+N)
 (define reply-snippets
