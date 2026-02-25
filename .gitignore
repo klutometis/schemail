@@ -8,3 +8,6 @@ config/tokens.json
 
 # Racket compiled bytecode
 compiled/
+
+# OpenCode state
+.opencode/
