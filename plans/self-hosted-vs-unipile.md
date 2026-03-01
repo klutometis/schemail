@@ -1,22 +1,144 @@
 # Self-Hosted vs. Unipile: Channel-by-Channel Analysis
 
 Decision document for whether to use Unipile (hosted proxy) or
-self-hosted open-source libraries for WhatsApp and LinkedIn messaging
-integration. This is orthogonal to the risk analysis in
+self-hosted open-source libraries for WhatsApp, LinkedIn, and
+iMessage integration. This is orthogonal to the risk analysis in
 `unified-messaging-risks.md` (which covers what happens *if* we use
 Unipile). This document covers whether we *should*.
 
 ## Executive Summary
 
-| Channel   | Recommendation         | Confidence |
-|-----------|------------------------|------------|
-| WhatsApp  | Self-hosted (Baileys)  | High       |
-| LinkedIn  | Unipile                | High       |
+| Channel   | Recommendation                | Confidence |
+|-----------|-------------------------------|------------|
+| iMessage  | Self-hosted (BlueBubbles)     | High       |
+| WhatsApp  | Self-hosted (Baileys)         | High       |
+| LinkedIn  | Unipile (~$5.50/mo)           | High       |
 
-WhatsApp has strong, actively maintained self-hosted options that keep
-credentials and message content local. LinkedIn does not — every
-open-source library is either dead, fragile, or requires maintaining
-a Python/Playwright sidecar that LinkedIn actively works to break.
+iMessage and WhatsApp both have strong, actively maintained self-hosted
+options that keep credentials and message content local. LinkedIn does
+not — every open-source library is either dead, fragile, or requires
+maintaining a Python/Playwright sidecar that LinkedIn actively works
+to break.
+
+## iMessage: BlueBubbles (self-hosted, Mac required)
+
+**BlueBubblesApp/bluebubbles-server** — TypeScript, Apache-2.0.
+
+| Attribute              | Value                                      |
+|------------------------|--------------------------------------------|
+| GitHub stars           | 839                                        |
+| Last commit            | May 16, 2025                               |
+| Latest release         | v1.9.9 (May 16, 2025)                     |
+| Protocol               | Reads macOS iMessage SQLite DB directly    |
+| Browser required?      | No                                         |
+| Auth method            | Shared password (query param)              |
+| Runs as                | macOS app (Electron) exposing REST API     |
+| Requires               | A Mac running macOS, always on             |
+
+**How it works**: BlueBubbles is a macOS server app that reads
+iMessage's local `chat.db` database (requires Full Disk Access) and
+exposes it as a REST API + Socket.IO for realtime push. Clients
+connect over HTTPS via built-in tunnel (ngrok/Cloudflare) or
+port-forwarding with dynamic DNS.
+
+There is no proxy/Unipile equivalent for iMessage. Apple's ecosystem
+is completely closed. The only way to get programmatic iMessage access
+is through a Mac running the Messages app. BlueBubbles is the most
+mature open-source project for this.
+
+### API surface (relevant to us)
+
+| Need                  | Endpoint                              | Notes                    |
+|-----------------------|---------------------------------------|--------------------------|
+| List conversations    | `POST /api/v1/chat/query`             | Pagination + filters     |
+| Get messages in chat  | `GET /api/v1/chat/:guid/message`      | Per-chat history         |
+| Send reply            | `POST /api/v1/message/text`           | `chatGuid` + `message`   |
+| Mark as read          | `POST /api/v1/chat/:guid/read`        | Requires Private API     |
+| Webhooks              | `POST /api/v1/webhook`                | Push on new messages     |
+| Send attachment       | `POST /api/v1/message/attachment`     |                          |
+| Send reaction         | `POST /api/v1/message/react`          | Requires Private API     |
+
+The API is comprehensive — also covers contacts, attachments,
+scheduled messages, typing indicators, group chat management,
+FindMy, and FaceTime. Far more than we need.
+
+Authentication is a simple shared password passed as `?password=`
+query parameter on every request. All connections use TLS.
+
+### Private API
+
+Some features (mark as read, reactions, typing indicators, edit/
+unsend) require the "Private API" helper bundle, which injects into
+the Messages app process. This requires **disabling SIP** (System
+Integrity Protection) on the Mac. Trade-off: reduced security
+hardening, but acceptable on a dedicated appliance Mac that does
+nothing else.
+
+### Hardware options
+
+| Setup                        | Cost          | Notes                             |
+|------------------------------|---------------|-----------------------------------|
+| Old Mac Mini (2009-2014)     | $50-100 (eBay)| Patch to High Sierra. Basic features work. |
+| Current Mac Mini (M-series)  | $500-600 new  | Full feature set. Ventura+ recommended. |
+| Mac in a closet/garage       | $0 ongoing    | Home network + Cloudflare tunnel.  |
+| Mac colocation               | ~$30-50/mo    | Overkill unless you need uptime guarantees. |
+| macOS VM on Linux/Windows    | $0            | Technically possible (Apple hardware required for legal compliance). Documented in BlueBubbles guides. |
+
+The canonical setup is a **Mac Mini as a dedicated headless
+appliance**: always on, connected to home network, running BlueBubbles
+and nothing else. Cloudflare tunnel or ngrok for remote access.
+
+### macOS version compatibility
+
+| macOS Version       | Feature coverage                          |
+|---------------------|-------------------------------------------|
+| High Sierra-Catalina| Send/receive, attachments, tapbacks. No replies UI, no edit/unsend. |
+| Big Sur-Monterey    | Full messaging features. FindMy devices.  |
+| Ventura+            | Everything including edit/unsend, mark unread. **Recommended.** |
+
+### Risks and caveats
+
+- **Requires a Mac, always on.** This is non-negotiable. There's no
+  way around the hardware requirement.
+- **Known stability issue.** Some users report the server needs
+  rebooting every 3-4 days. Manageable with a cron watchdog or
+  launchd plist, but not completely hands-off.
+- **SIP must be disabled** for Private API features (mark read,
+  reactions). Acceptable on a dedicated appliance, concerning if it's
+  your daily driver Mac.
+- **Last commit May 2025.** ~9 months without a commit as of
+  Feb 2026. The project appears stable/mature rather than abandoned
+  (v1.9.9 is a mature version number, 839 stars, no open issues
+  shown). But worth monitoring.
+- **No SMS support** currently (iMessage only, not green-bubble SMS).
+- **Apple could break it** with a macOS update that changes how
+  `chat.db` works or restricts Full Disk Access further. This has
+  not happened in the project's multi-year history, but it's a risk.
+
+### iMessage Verdict
+
+**BlueBubbles is the only viable option**, and it's a good one:
+
+1. **No alternative exists.** Apple's iMessage is completely closed.
+   There is no Unipile-like proxy, no protocol library, no browser
+   automation path. BlueBubbles (reading the local DB on a Mac) is
+   it.
+2. **The API is excellent.** Full REST API with websocket push,
+   webhooks, comprehensive endpoint coverage. Better documented than
+   most commercial APIs.
+3. **Privacy is perfect.** Everything stays on your Mac. No third
+   party ever sees your messages.
+4. **Cost is low.** A used Mac Mini ($50-100) + electricity. No
+   monthly fees.
+5. **Integration is straightforward.** Same pattern as the other
+   channels — Racket makes HTTP calls to a local/tunneled REST API.
+   BlueBubbles *is* the shim; no wrapper process needed.
+
+The only real cost is the Mac hardware and the commitment to keeping
+it running. If you already have a spare Mac (or are willing to buy a
+cheap used one), this is a no-brainer addition.
+
+---
 
 ## WhatsApp Options
 
@@ -305,25 +427,28 @@ session.
 Based on the above analysis, the recommended approach is:
 
 ```
-WhatsApp  →  Baileys (self-hosted Node.js shim)  →  schemail-flow
-LinkedIn  →  Unipile (hosted REST API)            →  schemail-flow
-Gmail     →  Gmail API (existing OAuth)           →  schemail-flow
+iMessage  →  BlueBubbles (Mac Mini + REST API)     →  schemail-flow
+WhatsApp  →  Baileys (self-hosted Node.js shim)    →  schemail-flow
+LinkedIn  →  Unipile (hosted REST API, ~$5.50/mo)  →  schemail-flow
+Gmail     →  Gmail API (existing OAuth)             →  schemail-flow
 ```
 
 ### What this means for the codebase
 
-Instead of a single `src/unipile.rkt` that handles both WhatsApp and
-LinkedIn, we'd have:
+Each channel gets its own thin Racket adapter module, all presenting
+the same interface to the TUI and daemon (list-chats, get-messages,
+send-message, archive, mark-read):
 
 | Module                    | Purpose                              |
 |---------------------------|--------------------------------------|
-| `src/unipile.rkt`         | LinkedIn only (Unipile REST API)     |
+| `src/imessage.rkt`        | iMessage via BlueBubbles REST API    |
 | `src/whatsapp.rkt`        | WhatsApp via local Baileys shim      |
+| `src/unipile.rkt`         | LinkedIn only (Unipile REST API)     |
+| `src/gmail.rkt`           | Gmail (existing, add thread funcs)   |
 | `shim/whatsapp-server.js` | Node.js process wrapping Baileys     |
 
-Both `unipile.rkt` and `whatsapp.rkt` would present the same
-interface to the TUI and daemon (list-chats, get-messages,
-send-message, archive, label), just with different backends.
+BlueBubbles doesn't need a shim — it *is* the server. Racket calls
+its REST API directly (same as Unipile, just self-hosted).
 
 ### The Baileys shim
 
@@ -338,33 +463,79 @@ A minimal Express/Fastify HTTP server (~100-150 lines) that:
 3. Stores auth state to disk (survives restarts without re-pairing).
 4. Runs as a background process alongside schemail-flow/daemon.
 
-### Trade-offs of hybrid vs. Unipile-for-both
+### Infrastructure summary
 
-| Factor                  | Hybrid                     | Unipile for both          |
-|-------------------------|----------------------------|---------------------------|
-| WhatsApp privacy        | **Local**                  | Remote (Unipile servers)  |
-| WhatsApp cost           | **$0**                     | ~$5.50/mo                 |
-| LinkedIn cost           | ~$5.50/mo                  | ~$5.50/mo                 |
-| Moving parts            | 3 (Racket + Node shim + Unipile) | 2 (Racket + Unipile) |
-| Integration patterns    | 2 (local HTTP + remote REST) | 1 (remote REST only)   |
-| Maintenance burden      | Medium (Baileys updates)   | Low (Unipile maintains)   |
-| Vendor dependency       | LinkedIn only              | Both channels             |
-| Credential exposure     | LinkedIn session only      | Both WA + LinkedIn        |
+| Component           | Runs on            | Always on? | Cost                  |
+|---------------------|--------------------|------------|-----------------------|
+| BlueBubbles server  | Mac Mini (garage)  | Yes        | ~$50-100 (one-time HW)|
+| Baileys shim        | Primary machine    | Daemon: yes, flow: on-demand | $0 |
+| Unipile             | Their servers      | Yes        | ~$5.50/mo             |
+| Gmail API           | Google             | Yes        | $0                    |
+| PostgreSQL          | Supabase           | Yes        | $0 (free tier)        |
+| schemail-flow (TUI) | Primary machine    | On-demand  | $0                    |
+| schemail (daemon)   | Primary machine    | Yes        | $0                    |
+
+**Total recurring cost: ~$5.50/mo** (Unipile for LinkedIn only).
+
+### Trade-offs of hybrid vs. Unipile-for-all-non-email
+
+| Factor                  | Hybrid (recommended)       | Unipile for WA + LI       |
+|-------------------------|----------------------------|----------------------------|
+| iMessage                | **Supported** (BlueBubbles)| Not possible (no proxy exists) |
+| WhatsApp privacy        | **Local**                  | Remote (Unipile servers)   |
+| WhatsApp cost           | **$0**                     | ~$5.50/mo                  |
+| LinkedIn cost           | ~$5.50/mo                  | ~$5.50/mo                  |
+| Moving parts            | 4 (Racket + Node shim + BB + Unipile) | 2 (Racket + Unipile) |
+| Integration patterns    | 2 (local HTTP + remote REST) | 1 (remote REST only)    |
+| Maintenance burden      | Medium                     | Low                        |
+| Vendor dependency       | LinkedIn only              | WA + LinkedIn              |
+| Credential exposure     | LinkedIn session only      | WA + LinkedIn              |
 
 ---
 
 ## Open Questions
 
-1. **Baileys auth state persistence**: How robust is the file-based
+1. **Mac hardware**: Do you have a spare Mac already, or does one
+   need to be acquired? A 2009-era Mac Mini on eBay ($50-100) works
+   for basic features; an M-series Mac Mini ($500-600) gets the full
+   Ventura+ feature set.
+
+2. **BlueBubbles stability**: Need to test the reported "reboot
+   every 3-4 days" issue firsthand. If real, set up a launchd plist
+   or cron watchdog to restart BlueBubbles automatically.
+
+3. **BlueBubbles Private API vs. standard**: Is mark-as-read
+   important enough to justify disabling SIP? If the Mac is a
+   dedicated appliance, probably yes. If it's a daily driver, no.
+
+4. **Baileys auth state persistence**: How robust is the file-based
    auth state? Does it survive long periods of shim downtime, or does
    the WhatsApp device get unlinked after inactivity?
 
-2. **Shim lifecycle management**: Should the Baileys shim be a
+5. **Shim lifecycle management**: Should the Baileys shim be a
    systemd service, a Docker container, or just a process managed by
    schemail-flow? Depends on whether it needs to run continuously
    (daemon mode) or on-demand (flow mode only).
 
-3. **Unified messaging plan update**: If hybrid is confirmed, the
-   main `unified-messaging.md` plan needs updating — split
-   `src/unipile.rkt` scope, add `src/whatsapp.rkt` +
-   `shim/whatsapp-server.js`, adjust architecture diagram.
+6. **Network topology for BlueBubbles**: Cloudflare tunnel (zero
+   config, depends on Cloudflare) vs. ngrok (free tier, reconnects)
+   vs. port-forwarding + dynamic DNS (fully self-hosted, more setup).
+
+## Future Possibilities
+
+These don't affect the core channel architecture but are natural
+extensions once the four-channel foundation is in place:
+
+1. **Web server + iPhone webview**: Wrap the same conversation
+   operations (list, read, reply, archive) behind a small HTTP
+   server. Racket has decent HTTP server libraries. The phone client
+   would be a mobile-optimized web page loaded in Safari or an iOS
+   webview wrapper — avoids the App Store entirely.
+
+2. **Google Calendar integration**: Another Gmail API scope. Surface
+   upcoming events in the TUI or as context for the AI reply drafter
+   ("I'm free Tuesday afternoon").
+
+3. **Auto-unsubscribe**: A classifier action that looks for
+   `List-Unsubscribe` headers in email and automatically sends the
+   unsubscribe request. Low risk, high quality-of-life improvement.

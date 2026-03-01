@@ -1,32 +1,48 @@
-# Unified Messaging: WhatsApp + LinkedIn + Email
+# Unified Messaging: iMessage + WhatsApp + LinkedIn + Email
 
 Extend schemail-flow from email-only triage to a unified
-conversation-first flow across Gmail, WhatsApp, and LinkedIn.
+conversation-first flow across iMessage, Gmail, WhatsApp, and
+LinkedIn.
 
 ## Motivation
 
-schemail-flow works well for cranking through email inbox. WhatsApp and
-LinkedIn messaging are equally painful (or worse) to triage manually.
-Neither platform offers meaningful API access to end-users directly:
+schemail-flow works well for cranking through email inbox. WhatsApp,
+LinkedIn, and iMessage are equally painful (or worse) to triage
+manually. None offer meaningful API access to end-users directly:
 
+- **iMessage**: Completely closed ecosystem. No API whatsoever.
+  Only accessible by reading the local SQLite DB on a Mac.
 - **LinkedIn**: No messaging API for regular users. Only
   Recruiter/Partner-level access.
 - **WhatsApp**: Business API requires a dedicated phone number (not
   personal). Personal-number access requires browser automation or a
   proxy service.
 
-## Approach: Unipile as Unified Messaging Proxy
+## Approach: Hybrid (self-hosted + Unipile)
 
-[Unipile](https://www.unipile.com/) provides a single REST API that
-wraps LinkedIn and WhatsApp (and others) by maintaining authenticated
-sessions on your behalf. One API key, one set of endpoints for both
-platforms.
+See `plans/self-hosted-vs-unipile.md` for the full channel-by-channel
+analysis. Summary:
+
+| Channel   | Backend                          | Cost          |
+|-----------|----------------------------------|---------------|
+| iMessage  | BlueBubbles (Mac Mini, REST API) | ~$50-100 HW   |
+| WhatsApp  | Baileys (Node.js shim, local)    | $0             |
+| LinkedIn  | Unipile (hosted REST API)        | ~$5.50/mo      |
+| Gmail     | Gmail API (existing OAuth)       | $0             |
+
+Three channels are fully self-hosted (credentials and messages stay
+local). LinkedIn alone uses Unipile because there is no viable
+self-hosted option — see the analysis doc for details.
+
+### Unipile (LinkedIn only)
+
+[Unipile](https://www.unipile.com/) provides a REST API that wraps
+LinkedIn by maintaining an authenticated session on your behalf.
 
 - **Authentication**: `X-API-KEY` header + per-tenant DSN base URL.
 - **Account connection**: One-time browser flow via Unipile's hosted
-  auth wizard. You log into LinkedIn/WhatsApp once; Unipile maintains
-  the session.
-- **Cost**: ~$50-200/mo depending on tier.
+  auth wizard, or cookie import via Chrome extension.
+- **Cost**: ~$5.50/mo per LinkedIn account.
 - **Risk**: See `plans/unified-messaging-risks.md` for deep dive.
   TL;DR: Low risk for reply-only use at low volume; not risk-free.
 
@@ -105,28 +121,38 @@ archive.
 ## Architecture
 
 ```
-                    +----------------+
-                    |   Supabase     |
-                    |  PostgreSQL    |
-                    | (state store)  |
-                    +-------+--------+
-                            |
-             +--------------+--------------+
-             |              |              |
-      +------+------+ +----+----+  +------+------+
-      |  schemail   | |schemail |  |   future    |
-      |   daemon    | |  flow   |  |  mobile     |
-      | (classify   | |  (TUI   |  |  client     |
-      |  + label +  | |  triage |  |             |
-      |  archive)   | | + reply)|  |             |
-      +--+------+---+ +-+---+--+  +-------------+
-         |      |      |   |
-    +----+  +---+  +---+   +----+
-    |       |      |            |
- +--+--+ +--+---+ +-+----+ +---+----+
- |Gmail| |Unipile| |Gmail | |Unipile |
- | API | | API   | | API  | |  API   |
- +-----+ +------+ +------+ +--------+
+                        +----------------+
+                        |   Supabase     |
+                        |  PostgreSQL    |
+                        | (state store)  |
+                        +-------+--------+
+                                |
+                 +--------------+--------------+
+                 |              |              |
+          +------+------+ +----+----+  +------+------+
+          |  schemail   | |schemail |  |   future    |
+          |   daemon    | |  flow   |  |   web UI    |
+          | (classify   | |  (TUI   |  |  (+ iPhone  |
+          |  + label +  | |  triage |  |   webview)  |
+          |  archive)   | | + reply)|  |             |
+          +--+--+--+--+-+ +--+--+--+-+ +-------------+
+             |  |  |  |     |  |  |  |
+        +----+  |  |  +--+--+  |  |  +----+
+        |       |  |     |     |  |        |
+     +--+--+ +-+-+ +-+--+-+ +-+--+-+ +----+---+
+     |Gmail| |BB | |Baileys| |Gmail | |Unipile |
+     | API | |API| | shim  | | API  | |  API   |
+     +-----+ +--++ +-------+ +------+ +--------+
+                |
+          +-----+------+
+          | Mac Mini   |
+          | BlueBubbles|
+          | (iMessage) |
+          +------------+
+
+BB = BlueBubbles (iMessage, self-hosted on Mac Mini)
+Baileys shim = WhatsApp (self-hosted Node.js process)
+Unipile = LinkedIn only (~$5.50/mo)
 ```
 
 ### Conversation-first model
@@ -137,15 +163,17 @@ to **one entry per conversation/thread** across all channels:
 
 - **Gmail**: Use `gmail-list-threads` / `gmail-get-thread` instead of
   `gmail-list-messages` / `gmail-get-message`.
-- **WhatsApp/LinkedIn**: One entry per Unipile chat.
+- **iMessage**: One entry per BlueBubbles chat.
+- **WhatsApp**: One entry per Baileys chat.
+- **LinkedIn**: One entry per Unipile chat.
 - **Unified item**: All sources normalize to the same shape for the
   TUI loop.
 
 Unified conversation item (internal hash):
 
 ```
-source:        'email | 'whatsapp | 'linkedin
-id:            thread-id (email) | chat-id (unipile)
+source:        'email | 'imessage | 'whatsapp | 'linkedin
+id:            thread-id (email) | chat-guid (BB) | chat-id (WA/LI)
 display-from:  sender name / phone / LI name
 subject:       email subject | chat name | sender name
 last-text:     snippet or last message text
@@ -172,9 +200,9 @@ via standard wire protocol. Ignore everything else they offer.
 ```sql
 CREATE TABLE conversations (
     id                TEXT PRIMARY KEY,   -- "{provider}:{provider_id}"
-    provider          TEXT NOT NULL,      -- "linkedin" | "whatsapp" | "gmail"
+    provider          TEXT NOT NULL,      -- "imessage" | "linkedin" | "whatsapp" | "gmail"
     provider_id       TEXT NOT NULL,      -- native ID from the platform
-    unipile_id        TEXT,               -- Unipile's ID (null for gmail)
+    external_id       TEXT,               -- Unipile ID (LinkedIn) or BlueBubbles GUID (iMessage)
     name              TEXT,               -- contact/chat display name
     label             TEXT,               -- classifier result
     archived          BOOLEAN DEFAULT FALSE,
@@ -194,6 +222,7 @@ CREATE INDEX idx_conversations_archived ON conversations(archived);
 | Channel   | DB role                                         |
 |-----------|-------------------------------------------------|
 | Gmail     | Supplementary record of classification results  |
+| iMessage  | **Primary** (iMessage has no native label/archive API) |
 | WhatsApp  | Supplementary (native labels/archive also used) |
 | LinkedIn  | **Only source of truth** for label + archive     |
 
@@ -203,15 +232,15 @@ differs from the stored one, re-classify.
 
 ## Channel Capabilities Matrix
 
-| Capability          | Gmail                  | WhatsApp              | LinkedIn         |
-|---------------------|------------------------|-----------------------|------------------|
-| Fetch conversations | `gmail-list-threads`   | Unipile list chats    | Unipile list chats |
-| Classify (daemon)   | LLM -> label + archive | LLM -> label + archive| LLM -> label + archive |
-| Native label        | Gmail label API        | `setLabel`            | **DB only**      |
-| Native archive      | Remove INBOX label     | `setArchiveStatus`    | **DB only**      |
-| Mark processed      | Hidden "Schemail" label| Mark as read          | **DB only** (last_message_id) |
-| Reply (flow)        | `gmail-send-email`     | `unipile-send-message`| `unipile-send-message` |
-| State in DB         | yes                    | yes                   | yes              |
+| Capability          | Gmail                  | iMessage                | WhatsApp              | LinkedIn         |
+|---------------------|------------------------|-------------------------|-----------------------|------------------|
+| Fetch conversations | `gmail-list-threads`   | BB `chat/query`         | Baileys event-driven  | Unipile list chats |
+| Classify (daemon)   | LLM -> label + archive | LLM -> label + archive  | LLM -> label + archive| LLM -> label + archive |
+| Native label        | Gmail label API        | **DB only**             | `setLabel`            | **DB only**      |
+| Native archive      | Remove INBOX label     | **DB only**             | `setArchiveStatus`    | **DB only**      |
+| Mark processed      | Hidden "Schemail" label| BB `chat/:guid/read` (Private API) | Mark as read | **DB only** (last_message_id) |
+| Reply (flow)        | `gmail-send-email`     | BB `message/text`       | Baileys `sendMessage` | `unipile-send-message` |
+| State in DB         | yes                    | yes                     | yes                   | yes              |
 
 ### WhatsApp archive behavior note
 
@@ -223,24 +252,85 @@ re-process them, which is fine -- same as email arriving back in inbox.
 
 ### New files
 
-| File                  | Purpose                                           |
-|-----------------------|---------------------------------------------------|
-| `src/unipile.rkt`     | Unipile REST API wrapper                          |
-| `src/store.rkt`       | PostgreSQL state store (connection + CRUD)         |
-| `config/unipile.rkt`  | Unipile config (provider selection, limits, etc.)  |
+| File                      | Purpose                                          |
+|---------------------------|--------------------------------------------------|
+| `src/imessage.rkt`        | BlueBubbles REST API wrapper (iMessage)          |
+| `src/whatsapp.rkt`        | Baileys shim HTTP client (WhatsApp)              |
+| `src/unipile.rkt`         | Unipile REST API wrapper (LinkedIn only)         |
+| `src/store.rkt`           | PostgreSQL state store (connection + CRUD)        |
+| `shim/whatsapp-server.js` | Node.js process wrapping Baileys as local REST   |
+| `shim/package.json`       | Dependencies for the Baileys shim                |
 
 ### Modified files
 
 | File                      | Changes                                          |
 |---------------------------|--------------------------------------------------|
 | `bin/schemail-flow`       | `--source` flag. Conversation-first loop. Unified display with source badges. Source-aware send/archive. Reads state from DB. |
-| `bin/schemail`            | `--source whatsapp` for daemon. Write state to DB for all sources. |
-| `src/gmail.rkt`           | Add `gmail-list-threads`, `gmail-get-thread`.     |
-| `src/reply-drafter.rkt`   | Add `#:history` param for conversation context.   |
+| `bin/schemail`            | `--source` flag for daemon. Write state to DB for all sources. |
+| `src/gmail.rkt`           | Add `gmail-list-threads`, `gmail-get-thread`.    |
+| `src/reply-drafter.rkt`   | Add `#:history` param for conversation context.  |
 
 ## Detailed Module Specs
 
-### src/unipile.rkt
+### src/imessage.rkt
+
+```racket
+;; Configuration from env vars:
+;;   BLUEBUBBLES_URL       -- e.g. "https://xxxxx.ngrok.io" or local
+;;   BLUEBUBBLES_PASSWORD  -- server password
+
+;; Core functions (same interface as other channel modules):
+
+(imessage-list-chats
+  #:limit [limit 50])
+;; -> list of chat hashes
+;; Uses: POST /api/v1/chat/query
+
+(imessage-get-chat-messages chat-guid
+  #:limit [limit 10])
+;; -> list of messages, most recent first
+;; Uses: GET /api/v1/chat/:guid/message
+
+(imessage-send-message chat-guid text)
+;; -> sends reply into chat
+;; Uses: POST /api/v1/message/text
+
+(imessage-mark-read chat-guid)
+;; -> marks chat as read (requires Private API on server)
+;; Uses: POST /api/v1/chat/:guid/read
+```
+
+### src/whatsapp.rkt
+
+```racket
+;; Configuration from env vars:
+;;   WHATSAPP_SHIM_URL  -- e.g. "http://localhost:3100"
+
+;; Core functions (same interface as other channel modules):
+
+(whatsapp-list-chats
+  #:unread-only? [unread? #t]
+  #:limit [limit 50])
+;; -> list of chat hashes
+;; Uses: GET /chats on local Baileys shim
+
+(whatsapp-get-chat-messages chat-id
+  #:limit [limit 10])
+;; -> list of messages, most recent first
+;; Uses: GET /chats/:id/messages on local shim
+
+(whatsapp-send-message chat-id text)
+;; -> sends reply into chat
+;; Uses: POST /chats/:id/messages on local shim
+
+(whatsapp-patch-chat chat-id
+  #:action action    ; "archive" | "label" | "markRead"
+  #:value value)
+;; -> modifies chat state
+;; Uses: PATCH /chats/:id on local shim
+```
+
+### src/unipile.rkt (LinkedIn only)
 
 ```racket
 ;; Configuration from env vars:
@@ -250,7 +340,6 @@ re-process them, which is fine -- same as email arriving back in inbox.
 ;; Core functions:
 
 (unipile-list-chats
-  #:provider [provider #f]      ; "WHATSAPP" | "LINKEDIN" | #f for all
   #:unread-only? [unread? #t]
   #:limit [limit 50]
   #:cursor [cursor #f])
@@ -264,23 +353,12 @@ re-process them, which is fine -- same as email arriving back in inbox.
 ;; -> POST multipart/form-data, sends reply into chat
 
 (unipile-patch-chat chat-id
-  #:action action    ; "setReadStatus" | "setArchiveStatus" | "setLabel"
-  #:value value)     ; boolean or string depending on action
-;; -> PATCH chat state
+  #:action action    ; "setReadStatus" | "setMuteStatus"
+  #:value value)     ; boolean
+;; -> PATCH chat state (LinkedIn only supports read + mute)
 
 (unipile-get-accounts)
 ;; -> list of connected accounts with provider type + account_id
-
-;; Accessors:
-(chat-id chat)           ; string
-(chat-provider chat)     ; "WHATSAPP" | "LINKEDIN"
-(chat-name chat)         ; display name
-(chat-last-at chat)      ; timestamp string
-(chat-unread-count chat) ; number
-(message-text msg)       ; string
-(message-sender msg)     ; sender_id string
-(message-is-mine? msg)   ; boolean
-(message-timestamp msg)  ; timestamp string
 ```
 
 ### src/store.rkt
@@ -347,20 +425,23 @@ New `--source` CLI flag:
 ```
 schemail-flow                    # default: email only
 schemail-flow --source email
+schemail-flow --source imessage
 schemail-flow --source whatsapp
 schemail-flow --source linkedin
 schemail-flow --source all       # unified, interleaved by recency
 ```
 
 Display changes:
-- Source badge in header box: `[Email]` / `[WhatsApp]` / `[LinkedIn]`
+- Source badge in header box: `[Email]` / `[iMessage]` / `[WhatsApp]`
+  / `[LinkedIn]`
 - For chat-based sources: show last 3-5 messages as conversation
   snippet instead of single truncated body
 - Actions remain: `[r]` reply, `[a]` archive/done, `[s]` skip, `[q]` quit
 
 Send/archive dispatch:
 - Email: `gmail-send-email` + remove INBOX label (existing)
-- WhatsApp: `unipile-send-message` + `setArchiveStatus` + `setLabel`
+- iMessage: `imessage-send-message` + `imessage-mark-read` + DB
+- WhatsApp: `whatsapp-send-message` + archive + label via shim
 - LinkedIn: `unipile-send-message` + update DB (archived, label)
 - All channels: write/update conversation record in DB
 
@@ -370,31 +451,41 @@ New `--source` flag for daemon mode:
 
 ```
 schemail daemon --source email      # existing behavior
+schemail daemon --source imessage   # new
 schemail daemon --source whatsapp   # new
-schemail daemon --source all        # both
+schemail daemon --source all        # all four channels
 ```
 
-WhatsApp daemon loop:
-1. Fetch unread WhatsApp chats via Unipile
+Generic daemon loop (same for all channels):
+1. Fetch unread/recent conversations via channel adapter
 2. For each: check DB `last_message_id` to see if already processed
 3. Get last N messages for context
 4. Classify with LLM (same prompt + schema as email)
-5. Apply: `setLabel` (native WA label) + `setArchiveStatus` if
-   should_archive + `setReadStatus` to mark processed
+5. Apply native actions where supported (labels, archive, mark read)
 6. Write classification state to DB
 
-LinkedIn daemon: not implemented. LinkedIn has nowhere to put the
-result natively, and the DB-only state is better served by JIT
-classification in schemail-flow. Can revisit later.
+Channel-specific daemon notes:
+- **Email**: Existing behavior, unchanged.
+- **iMessage**: Fetch via BlueBubbles, classify, mark read (Private
+  API), store label/archive state in DB (no native label support).
+- **WhatsApp**: Fetch via Baileys shim, classify, apply native
+  `setLabel` + `setArchiveStatus` + `setReadStatus`, store in DB.
+- **LinkedIn**: Fetch via Unipile, classify, mark read only (no
+  native label/archive). All state goes to DB. Consider whether
+  daemon is worthwhile here or if JIT classification in schemail-flow
+  is sufficient.
 
 ## Implementation Order
 
 1. `src/store.rkt` -- DB connection + schema + CRUD
-2. `src/unipile.rkt` -- API wrapper
-3. `src/gmail.rkt` -- add thread-level functions
-4. `src/reply-drafter.rkt` -- add `#:history` param
-5. `bin/schemail-flow` -- unified conversation-first TUI
-6. `bin/schemail` daemon -- WhatsApp mode + write-to-DB for all
+2. `src/gmail.rkt` -- add thread-level functions
+3. `src/reply-drafter.rkt` -- add `#:history` param
+4. `src/imessage.rkt` -- BlueBubbles REST API wrapper
+5. `shim/whatsapp-server.js` -- Baileys Node.js shim
+6. `src/whatsapp.rkt` -- Baileys shim HTTP client
+7. `src/unipile.rkt` -- Unipile REST API wrapper (LinkedIn)
+8. `bin/schemail-flow` -- unified conversation-first TUI
+9. `bin/schemail` daemon -- multi-source + write-to-DB for all
 
 ## One-Time Setup (manual steps)
 
@@ -402,13 +493,24 @@ classification in schemail-flow. Can revisit later.
    Set env vars: `SCHEMAIL_DB_HOST`, `SCHEMAIL_DB_PORT`,
    `SCHEMAIL_DB_NAME`, `SCHEMAIL_DB_USER`, `SCHEMAIL_DB_PASSWORD`.
 
-2. **Unipile**: Sign up, get API key + DSN. Set env vars:
-   `UNIPILE_API_KEY`, `UNIPILE_DSN`.
+2. **BlueBubbles (iMessage)**: Set up Mac Mini with BlueBubbles
+   server. Sign into iMessage. Optionally install Private API bundle
+   (requires disabling SIP). Set up Cloudflare tunnel or ngrok.
+   Set env vars: `BLUEBUBBLES_URL`, `BLUEBUBBLES_PASSWORD`.
 
-3. **Connect accounts**: Visit Unipile's hosted auth wizard URL to
-   connect your personal WhatsApp and LinkedIn accounts.
+3. **Baileys shim (WhatsApp)**: `cd shim && npm install`. Run
+   `node whatsapp-server.js`, scan QR code with phone. Auth state
+   persists to disk. Set env var: `WHATSAPP_SHIM_URL`.
 
-4. **Test**: Run `schemail-flow --source whatsapp` to verify.
+4. **Unipile (LinkedIn)**: Sign up, get API key + DSN. Connect
+   LinkedIn account via hosted auth wizard (cookie-based auth
+   recommended). Set env vars: `UNIPILE_API_KEY`, `UNIPILE_DSN`.
+
+5. **Test each channel**:
+   - `schemail-flow --source imessage`
+   - `schemail-flow --source whatsapp`
+   - `schemail-flow --source linkedin`
+   - `schemail-flow --source all`
 
 ## What Does NOT Change
 
@@ -417,3 +519,19 @@ classification in schemail-flow. Can revisit later.
 - OAuth/Gmail auth (`src/oauth.rkt`)
 - Filter DSL (`src/filters.rkt`)
 - The `bin/classify` convenience wrapper
+
+## Future Possibilities
+
+These don't block the core implementation but are natural extensions:
+
+1. **Web server + iPhone webview**: Wrap the conversation operations
+   behind a small Racket HTTP server. The phone client would be a
+   mobile-optimized web page in Safari or an iOS webview wrapper —
+   avoids the App Store entirely.
+
+2. **Google Calendar integration**: Another Gmail API scope. Surface
+   upcoming events as context for the AI reply drafter.
+
+3. **Auto-unsubscribe**: A classifier action that detects
+   `List-Unsubscribe` headers and sends the unsubscribe request
+   automatically.
