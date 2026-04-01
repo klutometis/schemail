@@ -122,7 +122,7 @@ archive.
 
 ```
                         +----------------+
-                        |   Supabase     |
+                        |     Neon       |
                         |  PostgreSQL    |
                         | (state store)  |
                         +-------+--------+
@@ -169,31 +169,63 @@ to **one entry per conversation/thread** across all channels:
 - **Unified item**: All sources normalize to the same shape for the
   TUI loop.
 
-Unified conversation item (internal hash):
+Unified conversation hash (internal representation):
 
+```racket
+(hash 'source          'whatsapp       ; 'gmail | 'whatsapp | 'imessage | 'linkedin
+      'id              "whatsapp:5551234@s.whatsapp.net"  ; "{provider}:{native_id}"
+      'from            "Alice Smith"   ; display name of sender / contact
+      'subject         "Alice Smith"   ; email subject | chat name
+      'body            "hey are you free?"  ; latest message text
+      'last-at         1709500000      ; epoch seconds (for sorting across sources)
+      'last-message-id "BAQE1234..."   ; native message ID (freshness check)
+      'history         (list           ; recent messages, newest first
+                         (hash 'sender "Alice" 'text "hey are you free?" 'at 1709500000)
+                         (hash 'sender "You"   'text "maybe, when?"      'at 1709499000))
+      'raw             <provider-hash>) ; original API response (escape hatch)
 ```
-source:        'email | 'imessage | 'whatsapp | 'linkedin
-id:            thread-id (email) | chat-guid (BB) | chat-id (WA/LI)
-display-from:  sender name / phone / LI name
-subject:       email subject | chat name | sender name
-last-text:     snippet or last message text
-last-at:       timestamp (for sorting across sources)
-raw:           the raw thread/chat hash (for operations)
-history:       list of recent messages (for AI context)
-```
+
+Every channel adapter normalizes its raw API data into this shape.
+The core loop, reply drafter, TUI display, and DB store all work
+exclusively off the top-level keys. The `'raw` field is an escape
+hatch for the per-channel send/archive adapters that need
+provider-specific fields (e.g. Gmail's `threadId` for threading,
+WhatsApp's native chat JID for archiving).
+
+**Who uses what**:
+
+| Component              | Reads from unified hash                    | Touches `'raw`? |
+|------------------------|--------------------------------------------|-----------------|
+| `draft-reply`          | `from`, `subject`, `body`, `history`       | No              |
+| TUI display            | `source`, `from`, `subject`, `body`, `history`, `last-at` | No |
+| `store.rkt` (DB write) | `id`, `source`, `from`, `last-message-id`, `last-at` | No |
+| Send reply             | `id`, `source`                             | **Yes** (threading, native IDs) |
+| After-triage           | `id`, `source`                             | **Yes** (native archive/label/mark-read) |
+
+**Native message IDs by channel** (none need fabrication):
+
+| Channel   | Native message ID source            |
+|-----------|-------------------------------------|
+| Gmail     | `msg.id` (e.g. `18d3f2a1b4c`)      |
+| WhatsApp  | Baileys `key.id` per message        |
+| iMessage  | BlueBubbles message GUID            |
+| LinkedIn  | Unipile `message.id`                |
 
 In `all` mode, conversations from all sources are interleaved by
 recency (most recent first) into one unified timeline.
 
-## State Store: PostgreSQL on Supabase
+## State Store: PostgreSQL on Neon
 
 Since LinkedIn has no native labels or archive, we maintain our own
 state in PostgreSQL. This store is used for all channels (essential for
 LinkedIn, supplementary for WhatsApp/Gmail which also apply native
 actions).
 
-Supabase is used purely as a free managed PostgreSQL instance. Connect
-via standard wire protocol. Ignore everything else they offer.
+Neon is a serverless Postgres provider with a free tier (0.5GB storage,
+100 compute-hours/mo). The database scales to zero when idle and wakes
+automatically on connection (~0.5s cold start). SSL is enforced by
+default. We connect via the pooler endpoint (PgBouncer) using a single
+connection string.
 
 ### Schema
 
@@ -268,117 +300,66 @@ re-process them, which is fine -- same as email arriving back in inbox.
 | `bin/schemail-flow`       | `--source` flag. Conversation-first loop. Unified display with source badges. Source-aware send/archive. Reads state from DB. |
 | `bin/schemail`            | `--source` flag for daemon. Write state to DB for all sources. |
 | `src/gmail.rkt`           | Add `gmail-list-threads`, `gmail-get-thread`.    |
-| `src/reply-drafter.rkt`   | Add `#:history` param for conversation context.  |
+| `src/reply-drafter.rkt`   | Refactor to accept unified hash (from, subject, body, history, source). |
+
+## Adapter Contract
+
+Every channel module exports the same three-function interface. The
+core loop in `schemail-flow` and the daemon never touch provider-
+specific data — they work exclusively through this contract.
+
+```racket
+;; Return a list of unified conversation hashes (see spec above).
+;; Each adapter fetches from its provider API, then normalizes.
+(channel-list-conversations
+  #:limit [limit 50])
+;; -> (listof unified-conversation-hash)
+
+;; Send a text reply into the conversation.
+;; Uses 'raw from the unified hash for provider-specific IDs
+;; (e.g. Gmail threadId, WhatsApp JID).
+(channel-send-message conv text)
+;; -> void
+
+;; Apply native post-triage side effects.
+;; action is 'archive | 'mark-read | 'mute
+;; Each adapter does what its platform supports; no-ops for the rest.
+(channel-after-triage! conv action)
+;; -> void
+```
+
+After-triage side effects by channel:
+
+| Action       | Gmail                    | WhatsApp              | iMessage             | LinkedIn       |
+|--------------|--------------------------|-----------------------|----------------------|----------------|
+| `'archive`   | Remove INBOX label       | `setArchiveStatus`    | DB only              | DB only        |
+| `'mark-read` | Remove UNREAD label      | `markRead`            | BB Private API       | `setReadStatus`|
+| `'mute`      | N/A                      | `setMuteStatus`       | N/A                  | `setMuteStatus`|
+
+The DB write (`store-conversation!`) happens in the **caller** (the
+core loop), not in the adapter. The adapter only handles native
+platform side effects.
 
 ## Detailed Module Specs
-
-### src/imessage.rkt
-
-```racket
-;; Configuration from env vars:
-;;   BLUEBUBBLES_URL       -- e.g. "https://xxxxx.ngrok.io" or local
-;;   BLUEBUBBLES_PASSWORD  -- server password
-
-;; Core functions (same interface as other channel modules):
-
-(imessage-list-chats
-  #:limit [limit 50])
-;; -> list of chat hashes
-;; Uses: POST /api/v1/chat/query
-
-(imessage-get-chat-messages chat-guid
-  #:limit [limit 10])
-;; -> list of messages, most recent first
-;; Uses: GET /api/v1/chat/:guid/message
-
-(imessage-send-message chat-guid text)
-;; -> sends reply into chat
-;; Uses: POST /api/v1/message/text
-
-(imessage-mark-read chat-guid)
-;; -> marks chat as read (requires Private API on server)
-;; Uses: POST /api/v1/chat/:guid/read
-```
-
-### src/whatsapp.rkt
-
-```racket
-;; Configuration from env vars:
-;;   WHATSAPP_SHIM_URL  -- e.g. "http://localhost:3100"
-
-;; Core functions (same interface as other channel modules):
-
-(whatsapp-list-chats
-  #:unread-only? [unread? #t]
-  #:limit [limit 50])
-;; -> list of chat hashes
-;; Uses: GET /chats on local Baileys shim
-
-(whatsapp-get-chat-messages chat-id
-  #:limit [limit 10])
-;; -> list of messages, most recent first
-;; Uses: GET /chats/:id/messages on local shim
-
-(whatsapp-send-message chat-id text)
-;; -> sends reply into chat
-;; Uses: POST /chats/:id/messages on local shim
-
-(whatsapp-patch-chat chat-id
-  #:action action    ; "archive" | "label" | "markRead"
-  #:value value)
-;; -> modifies chat state
-;; Uses: PATCH /chats/:id on local shim
-```
-
-### src/unipile.rkt (LinkedIn only)
-
-```racket
-;; Configuration from env vars:
-;;   UNIPILE_API_KEY  -- API key from Unipile dashboard
-;;   UNIPILE_DSN      -- e.g. "api1.unipile.com:13626"
-
-;; Core functions:
-
-(unipile-list-chats
-  #:unread-only? [unread? #t]
-  #:limit [limit 50]
-  #:cursor [cursor #f])
-;; -> (hash 'items (list chat ...) 'cursor "...")
-
-(unipile-get-chat-messages chat-id
-  #:limit [limit 10])
-;; -> list of messages, most recent first
-
-(unipile-send-message chat-id text)
-;; -> POST multipart/form-data, sends reply into chat
-
-(unipile-patch-chat chat-id
-  #:action action    ; "setReadStatus" | "setMuteStatus"
-  #:value value)     ; boolean
-;; -> PATCH chat state (LinkedIn only supports read + mute)
-
-(unipile-get-accounts)
-;; -> list of connected accounts with provider type + account_id
-```
 
 ### src/store.rkt
 
 ```racket
 ;; Configuration from env vars:
-;;   SCHEMAIL_DB_HOST
-;;   SCHEMAIL_DB_PORT (default 5432)
-;;   SCHEMAIL_DB_NAME
-;;   SCHEMAIL_DB_USER
-;;   SCHEMAIL_DB_PASSWORD
-;;   SCHEMAIL_DB_SSL (default "yes")
+;;   SCHEMAIL_DATABASE_URL  -- Neon pooler connection string
+;;     e.g. "postgresql://user:pass@ep-xxx-pooler.region.aws.neon.tech/neondb?sslmode=require"
+
+;; Parses the connection URL into components (Racket's db library
+;; doesn't support URL strings natively). Uses virtual-connection +
+;; connection-pool for Neon's scale-to-zero wake behavior.
 
 ;; Connection management:
-(get-db-connection)          ; lazy singleton, reconnects if dropped
+(get-db-connection)          ; lazy singleton via virtual-connection
 (ensure-schema!)             ; CREATE TABLE IF NOT EXISTS on startup
 
-;; CRUD:
-(store-conversation! conv)   ; upsert a conversation hash
-(get-conversation id)        ; lookup by "{provider}:{provider_id}"
+;; CRUD (all operate on unified conversation hashes):
+(store-conversation! conv)   ; upsert from unified hash
+(get-conversation id)        ; lookup by "provider:native_id"
 (list-conversations
   #:provider [provider #f]
   #:archived? [archived? #f]
@@ -391,31 +372,110 @@ re-process them, which is fine -- same as email arriving back in inbox.
 ;; -> #t if last_message_id differs from stored value
 ```
 
+### src/whatsapp.rkt
+
+```racket
+;; Configuration from env vars:
+;;   WHATSAPP_SHIM_URL  -- e.g. "http://localhost:3100"
+
+;; Implements the adapter contract for WhatsApp via local Baileys shim.
+
+(whatsapp-list-conversations
+  #:limit [limit 50])
+;; -> (listof unified-conversation-hash)
+;; Fetches from GET /chats on shim, normalizes each chat into
+;; the unified shape (with history from GET /chats/:id/messages).
+
+(whatsapp-send-message conv text)
+;; -> POST /chats/:id/messages on shim
+;; Extracts native chat JID from conv's 'raw field.
+
+(whatsapp-after-triage! conv action)
+;; -> PATCH /chats/:id on shim (archive, markRead, mute)
+```
+
+### shim/whatsapp-server.js
+
+Minimal Express HTTP server (~100-150 lines) wrapping Baileys:
+
+```
+GET  /chats?unread=true&limit=50   -- list recent chats
+GET  /chats/:id/messages?limit=10  -- get messages for a chat
+POST /chats/:id/messages           -- send reply { text: "..." }
+PATCH /chats/:id                   -- { action, value }
+GET  /health                       -- connection status
+```
+
+On startup: loads auth state from `shim/auth_info/`, connects to
+WhatsApp, prints QR code for first-time pairing. Auth state persists
+across restarts. Uses Baileys' in-memory message store to serve
+`GET /chats/:id/messages`.
+
+### src/imessage.rkt (later)
+
+```racket
+;; Configuration from env vars:
+;;   BLUEBUBBLES_URL       -- e.g. "https://xxxxx.ngrok.io"
+;;   BLUEBUBBLES_PASSWORD  -- server password
+
+(imessage-list-conversations #:limit [limit 50])
+;; -> (listof unified-conversation-hash)
+
+(imessage-send-message conv text)
+(imessage-after-triage! conv action)
+```
+
+### src/unipile.rkt (later, LinkedIn only)
+
+```racket
+;; Configuration from env vars:
+;;   UNIPILE_API_KEY  -- API key from Unipile dashboard
+;;   UNIPILE_DSN      -- e.g. "api1.unipile.com:13626"
+
+(unipile-list-conversations #:limit [limit 50])
+;; -> (listof unified-conversation-hash)
+
+(unipile-send-message conv text)
+(unipile-after-triage! conv action)
+```
+
 ### src/gmail.rkt additions
 
 ```racket
+;; New thread-level functions:
 (gmail-list-threads
   #:query [query #f]
   #:max-results [max-results 50]
   #:page-token [page-token #f])
 ;; -> (hash 'threads (list thread-stub ...) 'nextPageToken ...)
-;; Uses: GET /users/me/threads?q=...&maxResults=...
 
 (gmail-get-thread thread-id)
-;; -> full thread hash with 'messages list (oldest first)
-;; Uses: GET /users/me/threads/{id}?format=full
+;; -> full thread hash with 'messages list
+
+;; Adapter contract implementation:
+(gmail-list-conversations #:limit [limit 50])
+;; -> (listof unified-conversation-hash)
+;; Wraps gmail-list-threads + gmail-get-thread, normalizes.
+
+(gmail-send-message conv text)
+;; Extracts threadId, msg-id from conv's 'raw for proper threading.
+
+(gmail-after-triage! conv action)
+;; Removes INBOX/UNREAD labels as appropriate.
 ```
 
 ### src/reply-drafter.rkt changes
 
 ```racket
-(draft-reply message-or-text
+(draft-reply conv
   #:user-email [user-email ""]
-  #:user-name [user-name ""]
-  #:thread-context [thread-context ""]
-  #:history [history '()])       ; NEW: list of (hash 'sender S 'text T) pairs
-;; When history is non-empty, injects a CONVERSATION HISTORY
-;; section into the prompt with the last N exchanges for context.
+  #:user-name [user-name ""])
+;; Takes a unified conversation hash. Reads 'from, 'subject, 'body,
+;; 'history, and 'source directly from it. The 'source field
+;; calibrates tone: formal for 'gmail, casual for chat sources.
+;;
+;; No longer calls Gmail-specific helpers (message-from, get-email-body).
+;; Those move to the Gmail adapter's normalization step.
 ```
 
 ### bin/schemail-flow changes
@@ -431,67 +491,67 @@ schemail-flow --source linkedin
 schemail-flow --source all       # unified, interleaved by recency
 ```
 
-Display changes:
-- Source badge in header box: `[Email]` / `[iMessage]` / `[WhatsApp]`
-  / `[LinkedIn]`
-- For chat-based sources: show last 3-5 messages as conversation
-  snippet instead of single truncated body
-- Actions remain: `[r]` reply, `[a]` archive/done, `[s]` skip, `[q]` quit
+The `--source` flag selects which adapter(s) to call. The core loop
+is source-agnostic — it only sees unified conversation hashes:
 
-Send/archive dispatch:
-- Email: `gmail-send-email` + remove INBOX label (existing)
-- iMessage: `imessage-send-message` + `imessage-mark-read` + DB
-- WhatsApp: `whatsapp-send-message` + archive + label via shim
-- LinkedIn: `unipile-send-message` + update DB (archived, label)
-- All channels: write/update conversation record in DB
+```racket
+(define convs (adapter-list-conversations source))  ; unified hashes
+(for ([conv convs] [i (in-naturals 1)])
+  (display-conversation conv i (length convs))      ; source badge + body/history
+  (case (read-key)
+    [(#\r) (define draft (draft-reply conv ...))
+           (adapter-send-message conv draft)
+           (adapter-after-triage! conv 'mark-read)
+           (store-conversation! conv)]
+    [(#\a) (adapter-after-triage! conv 'archive)
+           (store-conversation! conv)]
+    [(#\s) (void)]
+    [(#\q) (exit 0)]))
+```
+
+Display changes:
+- Source badge in header: `[Email]` / `[iMessage]` / `[WhatsApp]`
+  / `[LinkedIn]`
+- Chat sources: show last 3-5 messages as conversation snippet
+- Actions: `[r]` reply, `[a]` archive/done, `[s]` skip, `[q]` quit
+
+`adapter-send-message` and `adapter-after-triage!` dispatch to the
+right channel module based on `(hash-ref conv 'source)`. Native side
+effects (Gmail labels, WhatsApp archive, etc.) happen inside the
+adapter. The DB write happens in the caller — always, for all sources.
 
 ### bin/schemail daemon changes
 
-New `--source` flag for daemon mode:
+Same `--source` flag. Same adapter contract. One generic loop:
 
 ```
-schemail daemon --source email      # existing behavior
-schemail daemon --source imessage   # new
-schemail daemon --source whatsapp   # new
 schemail daemon --source all        # all four channels
 ```
 
-Generic daemon loop (same for all channels):
-1. Fetch unread/recent conversations via channel adapter
-2. For each: check DB `last_message_id` to see if already processed
-3. Get last N messages for context
-4. Classify with LLM (same prompt + schema as email)
-5. Apply native actions where supported (labels, archive, mark read)
-6. Write classification state to DB
-
-Channel-specific daemon notes:
-- **Email**: Existing behavior, unchanged.
-- **iMessage**: Fetch via BlueBubbles, classify, mark read (Private
-  API), store label/archive state in DB (no native label support).
-- **WhatsApp**: Fetch via Baileys shim, classify, apply native
-  `setLabel` + `setArchiveStatus` + `setReadStatus`, store in DB.
-- **LinkedIn**: Fetch via Unipile, classify, mark read only (no
-  native label/archive). All state goes to DB. Consider whether
-  daemon is worthwhile here or if JIT classification in schemail-flow
-  is sufficient.
+1. Fetch conversations via `adapter-list-conversations`
+2. For each: check DB — `(conversation-needs-reclassify? id last-message-id)`
+3. If new activity: classify with LLM (same prompt for all sources)
+4. `adapter-after-triage!` for native side effects
+5. `store-conversation!` to write label + archived state to DB
 
 ## Implementation Order
 
-1. `src/store.rkt` -- DB connection + schema + CRUD
-2. `src/gmail.rkt` -- add thread-level functions
-3. `src/reply-drafter.rkt` -- add `#:history` param
-4. `src/imessage.rkt` -- BlueBubbles REST API wrapper
-5. `shim/whatsapp-server.js` -- Baileys Node.js shim
-6. `src/whatsapp.rkt` -- Baileys shim HTTP client
-7. `src/unipile.rkt` -- Unipile REST API wrapper (LinkedIn)
-8. `bin/schemail-flow` -- unified conversation-first TUI
-9. `bin/schemail` daemon -- multi-source + write-to-DB for all
+WhatsApp first (end-to-end), then add other channels:
+
+1. `src/store.rkt` -- DB connection + schema + CRUD (Neon)
+2. `shim/whatsapp-server.js` + `shim/package.json` -- Baileys Node.js shim
+3. `src/whatsapp.rkt` -- adapter (list-conversations, send, after-triage!)
+4. `src/reply-drafter.rkt` -- refactor to accept unified hash
+5. `bin/schemail-flow` -- add `--source` flag, unified loop
+6. (Later) `src/gmail.rkt` -- add thread funcs + adapter contract
+7. (Later) `src/imessage.rkt` -- BlueBubbles adapter
+8. (Later) `src/unipile.rkt` -- LinkedIn adapter
+9. (Later) `bin/schemail` daemon -- multi-source classification
 
 ## One-Time Setup (manual steps)
 
-1. **Supabase**: Create project, get PostgreSQL connection string.
-   Set env vars: `SCHEMAIL_DB_HOST`, `SCHEMAIL_DB_PORT`,
-   `SCHEMAIL_DB_NAME`, `SCHEMAIL_DB_USER`, `SCHEMAIL_DB_PASSWORD`.
+1. **Neon**: Create project (free tier), copy the pooler connection
+   string. Store as `SCHEMAIL_DATABASE_URL` in `~/.env-secrets`.
 
 2. **BlueBubbles (iMessage)**: Set up Mac Mini with BlueBubbles
    server. Sign into iMessage. Optionally install Private API bundle

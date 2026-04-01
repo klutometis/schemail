@@ -11,3 +11,6 @@ compiled/
 
 # OpenCode state
 .opencode/
+
+# Serena state
+.serena/

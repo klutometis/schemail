@@ -471,7 +471,7 @@ A minimal Express/Fastify HTTP server (~100-150 lines) that:
 | Baileys shim        | Primary machine    | Daemon: yes, flow: on-demand | $0 |
 | Unipile             | Their servers      | Yes        | ~$5.50/mo             |
 | Gmail API           | Google             | Yes        | $0                    |
-| PostgreSQL          | Supabase           | Yes        | $0 (free tier)        |
+| PostgreSQL          | Neon               | Yes (scale-to-zero) | $0 (free tier) |
 | schemail-flow (TUI) | Primary machine    | On-demand  | $0                    |
 | schemail (daemon)   | Primary machine    | Yes        | $0                    |
 
