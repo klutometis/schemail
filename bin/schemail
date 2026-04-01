@@ -9,6 +9,7 @@
          "../src/llm-classifier.rkt"
          "../src/label-colors.rkt"
          "../src/label-utils.rkt"
+         "../src/label-consolidation.rkt"
          "../config/filters.rkt"
          "../config/preferences.rkt"
          "../config/classifier-prompts.rkt"
@@ -37,6 +38,7 @@ USAGE:
   schemail process [OPTIONS]     Process emails through filters
   schemail daemon [OPTIONS]      Run as daemon (polls for new emails)
   schemail labels [OPTIONS]      Manage Gmail labels
+  schemail consolidate [--yes]   Merge duplicate/variant labels (LLM-powered)
   schemail archive-all [--yes]   Archive all inbox messages (inbox bankruptcy)
   schemail test                  Run test suite
   schemail help                  Show this help
@@ -188,6 +190,9 @@ NOTES:
        (loop rest)]
       [(list "test" rest ...)
        (hash-set! options 'command 'test)
+       (loop rest)]
+      [(list "consolidate" rest ...)
+       (hash-set! options 'command 'consolidate)
        (loop rest)]
       [(list "archive-all" rest ...)
        (hash-set! options 'command 'archive-all)
@@ -693,6 +698,23 @@ NOTES:
   (get-gmail-token)
   (cleanup-experiment-labels!))
 
+;; Consolidate duplicate/variant labels
+(define (cmd-consolidate options)
+  (displayln "\n╔════════════════════════════════════════════════════════════╗")
+  (displayln "║  Consolidate Labels                                        ║")
+  (displayln "╚════════════════════════════════════════════════════════════╝\n")
+  
+  (get-gmail-token)
+  
+  (define exclude-list (get-config 'exclude-from-coloring))
+  (displayln "Fetching existing labels...")
+  (define labels-hash (get-labels-with-counts #:exclude exclude-list))
+  
+  (displayln (format "Found ~a labels\n" (hash-count labels-hash)))
+  
+  (define yes? (hash-ref options 'yes?))
+  (consolidate-labels! labels-hash #:yes? yes?))
+
 ;; Archive all inbox messages (inbox bankruptcy)
 (define (cmd-archive-all options)
   (displayln "\n╔════════════════════════════════════════════════════════════╗")
@@ -762,6 +784,7 @@ NOTES:
   (match command
     ['process (cmd-process options)]
     ['daemon (cmd-daemon options)]
+    ['consolidate (cmd-consolidate options)]
     ['archive-all (cmd-archive-all options)]
     ['labels-hide-except (cmd-labels-hide-except options)]
     ['labels-assign-colors (cmd-labels-assign-colors options)]

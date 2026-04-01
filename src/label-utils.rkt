@@ -3,9 +3,13 @@
 ;; Shared utilities for Gmail label operations
 ;; Used by both llm.rkt and llm-classifier.rkt
 
-(require "gmail.rkt")
+(require "gmail.rkt"
+         json
+         net/url
+         net/http-easy)
 
 (provide normalize-label
+         resolve-canonical-label
          ensure-schemail-marker
          ensure-label-hierarchy
          apply-content-and-marker-labels
@@ -32,6 +36,94 @@
   (if (string-contains? raw-label "/")
       (string-join (map normalize-label-part (string-split raw-label "/")) "/")
       (normalize-label-part raw-label)))
+
+;; ============================================================================
+;; LLM-Powered Label Resolution
+;; ============================================================================
+
+(define CLAUDE-API-URL "https://api.anthropic.com/v1/messages")
+(define RESOLUTION-MODEL "claude-haiku-4-5")
+(define ANTHROPIC-API-KEY (getenv "ANTHROPIC_API_KEY"))
+
+;; In-memory cache: raw label -> resolved canonical label (within a single run)
+(define canonical-cache (make-hash))
+
+(define RESOLVE-PROMPT
+  "Given this proposed email label and existing labels, return the best label to use.
+
+Rules:
+1. If the proposed label is a duplicate/variant of an existing label (plural, abbreviation, typo, gerund, synonym), return the existing label name exactly.
+2. If it's a genuinely new label, return it with proper formatting:
+   - Acronyms should be uppercase (PTA, HOA, AYSO, DMV, FAQ, HTML, CSS, NFL, NBA, MLB)
+   - Regular words in Title Case
+   - Keep it concise
+
+Proposed label: \"{proposed}\"
+
+Existing labels:
+{existing_labels}
+
+Return ONLY the label name. Nothing else.")
+
+;; Ask the LLM to resolve a proposed label against existing labels.
+;; Returns the canonical label name (either an existing label or a properly-cased new one).
+;; Results are cached in-memory for the duration of a run.
+(define (resolve-canonical-label raw-label labels-hash)
+  ;; Check cache first
+  (define cached (hash-ref canonical-cache raw-label #f))
+  (when cached
+    (displayln (format "  → Label cache hit: ~a -> ~a" raw-label cached))
+    cached)
+  
+  (or cached
+      ;; If no existing labels, just normalize
+      (if (hash-empty? labels-hash)
+          (let ([normalized (normalize-label raw-label)])
+            (hash-set! canonical-cache raw-label normalized)
+            normalized)
+          ;; Call LLM for resolution
+          (with-handlers ([exn:fail?
+                           (lambda (e)
+                             (displayln (format "  ⚠ Label resolution failed (~a), falling back to normalize" (exn-message e)))
+                             (define fallback (normalize-label raw-label))
+                             (hash-set! canonical-cache raw-label fallback)
+                             fallback)])
+            (define existing-text (format-labels-for-prompt labels-hash))
+            (define prompt (string-replace 
+                           (string-replace RESOLVE-PROMPT "{proposed}" raw-label)
+                           "{existing_labels}" existing-text))
+            
+            (define request-body
+              (hasheq 'model RESOLUTION-MODEL
+                      'max_tokens 64
+                      'messages (list (hasheq 'role "user"
+                                              'content prompt))))
+            
+            (define response
+              (post CLAUDE-API-URL
+                    #:headers (hash 'x-api-key ANTHROPIC-API-KEY
+                                   'anthropic-version "2023-06-01"
+                                   'content-type "application/json")
+                    #:data (jsexpr->string request-body)))
+            
+            (unless (= (response-status-code response) 200)
+              (error 'resolve-canonical-label "API request failed: ~a" 
+                     (response-status-code response)))
+            
+            (define response-json (string->jsexpr (bytes->string/utf-8 (response-body response))))
+            (define content (hash-ref response-json 'content '()))
+            (when (empty? content)
+              (error 'resolve-canonical-label "No content in response"))
+            
+            (define resolved (string-trim (hash-ref (car content) 'text "")))
+            
+            ;; Sanity check: if resolved is empty, fall back
+            (when (equal? resolved "")
+              (error 'resolve-canonical-label "Empty response"))
+            
+            (displayln (format "  → Label resolved: ~a -> ~a" raw-label resolved))
+            (hash-set! canonical-cache raw-label resolved)
+            resolved))))
 
 ;; ============================================================================
 ;; Schemail Marker Management

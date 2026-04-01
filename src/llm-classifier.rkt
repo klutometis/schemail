@@ -170,7 +170,7 @@
 ;; ============================================================================
 
 ;; Apply classification results to Gmail message
-(define (apply-classification message classification #:dry-run? [dry-run? #f])
+(define (apply-classification message classification labels-hash #:dry-run? [dry-run? #f])
   (define label (hash-ref classification 'label))
   (define should-archive? (hash-ref classification 'should_archive))
   (define rationale (hash-ref classification 'rationale))
@@ -181,8 +181,8 @@
   (displayln (format "Archive: ~a" should-archive?))
   (displayln (format "Rationale: ~a" rationale))
   
-  ;; Normalize label name (flat structure with proper formatting)
-  (define content-label (normalize-label label))
+  ;; Resolve label via LLM (dedup + proper casing) with normalize fallback
+  (define content-label (resolve-canonical-label label labels-hash))
   (displayln (format "Content label: ~a" content-label))
   
   (when dry-run?
@@ -218,13 +218,13 @@
   (displayln (format "Mode: ~a" (if dry-run? "DRY RUN" "LIVE")))
   
   (define classification (claude-classify message prompt labels-hash))
-  (apply-classification message classification #:dry-run? dry-run?)
+  (apply-classification message classification labels-hash #:dry-run? dry-run?)
   
   ;; Update labels hash with the label we just used (unless dry-run)
   (unless dry-run?
     (define label (hash-ref classification 'label))
-    (define normalized-label (normalize-label label))
-    (update-label-hash! labels-hash normalized-label))
+    (define resolved-label (resolve-canonical-label label labels-hash))
+    (update-label-hash! labels-hash resolved-label))
   
   ;; Return as values tuple
   (values (hash-ref classification 'label)
