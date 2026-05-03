@@ -1,0 +1,15 @@
+app = "schemail"
+primary_region = "iad"
+
+# No HTTP service — this is a background worker
+[build]
+
+# Smallest VM: shared CPU, 256MB RAM
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = 256
+
+# Persistent volume for OAuth tokens
+[mounts]
+  source = "schemail_data"
+  destination = "/data"

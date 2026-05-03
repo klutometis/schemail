@@ -1,0 +1,11 @@
+.git
+.gitignore
+.oauth2.rkt/
+.opencode/
+.serena/
+compiled/
+notes/
+todo/
+plans/
+docs/
+*.md
