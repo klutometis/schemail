@@ -2,6 +2,12 @@ FROM racket/racket:9.0
 
 WORKDIR /app
 
+# The image bundles OpenSSL 1.1.1 in /usr/lib/racket and Racket prefers it,
+# but crypto-lib rejects 1.1 ("library version not supported"), so
+# simple-oauth2 cannot decrypt its AES-GCM token file. Delete the bundled
+# copies; Racket falls back to the system libssl/libcrypto 3.x.
+RUN rm -f /usr/lib/racket/libssl.so.1.1 /usr/lib/racket/libcrypto.so.1.1
+
 # Installation scope, so the daemon can run as an unprivileged uid (the host
 # user who owns the token files) rather than root. --no-docs avoids pulling
 # huge doc chains.
