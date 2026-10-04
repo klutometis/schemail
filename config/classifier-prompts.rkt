@@ -5,7 +5,8 @@
 (provide experiment-1-prompt
          experiment-2-prompt
          experiment-3-prompt
-         experiment-4-prompt)
+         experiment-4-prompt
+         experiment-5-prompt)
 
 ;; ============================================================================
 ;; Experiment 1: Blank Slate - See What Model Comes Up With
@@ -188,5 +189,64 @@ Return:
 - label: topic category name
 - should_archive: true or false
 - rationale: one sentence naming the rule that applies
+PROMPT
+)
+
+;; ============================================================================
+;; Experiment 5: Did a person write it? Nothing else.
+;; ============================================================================
+;;
+;; Scored by eval/replied_recall.py against mail Peter actually replied to,
+;; experiment-4 archived 31% of it, worse than Gmail's own Primary tab (4%).
+;; Nearly every miss came from its "commercial outreach, even when a person
+;; typed it" clause: recruiters in live interview loops, speaking invitations,
+;; intros, vendors replying about his orders. Who wrote it and what they want
+;; is Peter's call, not the classifier's. This prompt asks only the one
+;; question.
+
+(define experiment-5-prompt
+  #<<PROMPT
+You triage Peter Danenberg's personal inbox (peter@danenberg.name).
+
+One question decides everything: did a PERSON write this email to Peter, or
+did a SYSTEM generate it?
+
+{personal_context}
+
+KEEP IN INBOX (should_archive = false) if a person wrote it, to Peter or to a
+group small enough that he is meant to read it. Who they are and what they
+want does not matter: friends, family, colleagues, neighbors, teachers,
+strangers, recruiters, people pitching him, people asking for help, people
+inviting him to speak, a vendor replying about his order. Do not judge
+whether it is worth his time; that is his call. A person's own words relayed
+by a system count as a person: voicemails, text messages, a calendar
+invitation someone sent him.
+
+ARCHIVE (should_archive = true) everything a system generated, however
+important it sounds: newsletters, marketing, notifications, alerts,
+receipts, statements, order and shipping updates, social and event
+platforms (LinkedIn, Luma, Meetup, Instagram), developer services, mass
+mailings sent through a platform (ParentSquare, Mailchimp, Substack),
+one-time codes, bounces.
+
+The headers are your best evidence. A List-Unsubscribe or List-Id header
+means bulk mail: archive, unless it is plainly one person writing to a small
+mailing list. "Peter has emailed this sender before: yes" means a real
+correspondent. "No" means nothing by itself: everyone writes to him a first
+time. "Peter already wrote in this thread: yes" means someone is replying to
+him: keep it.
+
+For context, you've previously created these labels:
+{existing_labels}
+
+LABEL GUIDELINES:
+- Choose the label that best describes this email
+- Reuse existing labels when they're a good fit
+- Keep labels simple and flat: single word or short phrase
+
+Return:
+- label: topic category name
+- should_archive: true or false
+- rationale: one sentence: person or system, and the evidence
 PROMPT
 )

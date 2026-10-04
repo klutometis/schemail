@@ -58,7 +58,8 @@ PROCESS OPTIONS:
   
   --classifier EXPERIMENT   Use structured classifier instead of filters
                             Options: experiment-1, experiment-2, experiment-3,
-                                     experiment-4 (strict signal-only inbox)
+                                     experiment-4 (strict signal-only inbox),
+                                     experiment-5 (did a person write it?)
   
   --model MODEL             LLM model to use (default: haiku-4-5)
                             Options: haiku-4-5 (cheap), sonnet-4-5 (smart)
@@ -373,9 +374,10 @@ NOTES:
            ['experiment-2 experiment-2-prompt]
            ['experiment-3 experiment-3-prompt]
            ['experiment-4 experiment-4-prompt]
+           ['experiment-5 experiment-5-prompt]
            [else 
             (displayln (format "Unknown classifier experiment: ~a" classifier-experiment))
-            (displayln "Valid options: experiment-1, experiment-2, experiment-3, experiment-4")
+            (displayln "Valid options: experiment-1, experiment-2, experiment-3, experiment-4, experiment-5")
             (exit 1)])))
   
   ;; Select filter strategy (if not using classifier)
@@ -557,6 +559,7 @@ NOTES:
            ['experiment-2 experiment-2-prompt]
            ['experiment-3 experiment-3-prompt]
            ['experiment-4 experiment-4-prompt]
+           ['experiment-5 experiment-5-prompt]
            [_ #f])))
   
   ;; Load filter strategy if using filters

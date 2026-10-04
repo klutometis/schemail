@@ -27,8 +27,24 @@ Schemail uses large language models to intelligently classify your emails into c
 ## Where It Runs
 
 Since 2026-10-03 the daemon runs continuously on **vm.danenberg.ai** in a
-Docker container (`--restart unless-stopped`), classifier `experiment-4`,
+Docker container (`--restart unless-stopped`), classifier `experiment-5`,
 Haiku 4.5, polling every 5 minutes. Nobody has to start it.
+
+The classifier asks one question: did a person write this to Peter, or did a
+system generate it? `eval/replied_recall.py` scores it against mail Peter
+actually replied to over the past year (2026-10-04, 281 replied-to and 400
+random recent messages):
+
+| method | keeps what he replied to | keeps of all inbound | ≈ per day |
+|---|---:|---:|---:|
+| Gmail Primary tab (free) | 96% | 18% | 13 |
+| experiment-4 (person, minus "commercial outreach") | 68% | 11% | 8 |
+| **experiment-5 (person, full stop)** | **92%** | **11%** | **8** |
+
+Half of experiment-5's misses are system mail he happened to act on
+(bounces, order confirmations); the rest are borderline and flip between runs
+(±2%). Rerun the eval before changing the prompt; it caches, so a rerun costs
+only the prompt that changed (~$2).
 
 ```bash
 bin/deploy-vm            # pull main on the VM, rebuild, restart

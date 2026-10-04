@@ -36,4 +36,4 @@ ENV HOME=/data \
 HEALTHCHECK --interval=5m --timeout=10s --start-period=10m \
   CMD test $(( $(date +%s) - $(cat /data/heartbeat) )) -lt 1200
 
-CMD ["racket", "bin/schemail", "daemon", "--classifier", "experiment-4", "--model", "haiku-4-5", "--interval", "5"]
+CMD ["racket", "bin/schemail", "daemon", "--classifier", "experiment-5", "--model", "haiku-4-5", "--interval", "5"]

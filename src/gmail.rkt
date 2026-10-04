@@ -28,6 +28,10 @@
 (define (gmail-get-message message-id #:format [msg-format "full"])
   (gmail-api-request (format "messages/~a?format=~a" message-id msg-format)))
 
+;; Get a thread (format "minimal": ids, labelIds, internalDate per message)
+(define (gmail-get-thread thread-id #:format [thread-format "minimal"])
+  (gmail-api-request (format "threads/~a?format=~a" thread-id thread-format)))
+
 ;; Modify message labels
 (define (gmail-modify-message message-id 
                               #:add-labels [add-labels '()]
@@ -141,6 +145,7 @@
 ;; Module exports
 (provide gmail-list-messages
          gmail-get-message
+         gmail-get-thread
          gmail-modify-message
          gmail-batch-modify
          gmail-list-labels

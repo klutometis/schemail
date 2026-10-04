@@ -68,16 +68,37 @@
                   (let ([a (message-header message "Auto-Submitted")])
                     (and a (not (string-ci=? a "no")) (format "Auto-Submitted: ~a" a))))))
   (define corresponded (sender-corresponded? from))
+  (define in-thread (peter-wrote-earlier-in-thread? message))
+  (define (yes/no v) (case v [(#t) "yes"] [(#f) "no"] [else "unknown"]))
   
   (format (string-append
            "From: ~a\nTo: ~a\n~aDate: ~a\nSubject: ~a\n\n"
            "Bulk/automation headers: ~a\n"
-           "Peter has emailed this sender before: ~a\n\n"
+           "Peter has emailed this sender before: ~a\n"
+           "Peter already wrote in this thread: ~a\n\n"
            "Content:\n~a")
           from to (if cc (format "Cc: ~a\n" cc) "") date subject
           (if (empty? bulk-markers) "none" (string-join bulk-markers ", "))
-          (case corresponded [(#t) "yes"] [(#f) "no"] [else "unknown"])
+          (yes/no corresponded)
+          (yes/no in-thread)
           snippet))
+
+;; Is this message a reply to something Peter wrote? True if the thread holds
+;; a SENT message older than this one. The eval found people replying in
+;; threads he started (a printer about his order, a lumber yard) among the
+;; misses; the sender check alone misses them when the reply comes from a
+;; different address than the one he wrote to.
+(define (peter-wrote-earlier-in-thread? message)
+  (with-handlers ([exn:fail? (λ (e) 'unknown)])
+    (define tid (hash-ref message 'threadId #f))
+    (define ts (string->number (hash-ref message 'internalDate "0")))
+    (cond
+      [(not tid) 'unknown]
+      [else
+       (define msgs (hash-ref (gmail-get-thread tid) 'messages '()))
+       (for/or ([m msgs])
+         (and (member "SENT" (hash-ref m 'labelIds '()))
+              (< (string->number (hash-ref m 'internalDate "0")) ts)))])))
 
 ;; Who the inbox belongs to: job, projects, family situation. Kept out of the
 ;; (public) repo in config/personal-context.txt, which is gitignored; see
