@@ -39,12 +39,19 @@ random recent messages):
 |---|---:|---:|---:|
 | Gmail Primary tab (free) | 96% | 18% | 13 |
 | experiment-4 (person, minus "commercial outreach") | 68% | 11% | 8 |
-| **experiment-5 (person, full stop)** | **92%** | **11%** | **8** |
+| experiment-5 (person, full stop) | 93% | 10% | 7 |
+| **deployed: experiment-5 + thread rule** | **95%** | **10.5%** | **7** |
 
-Half of experiment-5's misses are system mail he happened to act on
-(bounces, order confirmations); the rest are borderline and flip between runs
-(±2%). Rerun the eval before changing the prompt; it caches, so a rerun costs
-only the prompt that changed (~$2).
+The thread rule (`keep-replies-to-peter`) keeps any reply in a thread Peter
+wrote in, overriding the model, which archives some as "system-generated"
+(a support agent on his ticket, a printer's corrected proof). It added none
+of the 400 random messages. The remaining misses are mostly system mail he
+happened to act on (order confirmations) or borderline, and flip between
+runs (±2%). Rerun the eval before changing the prompt; it caches by prompt
+hash, so a rerun costs only the prompt that changed (~$2).
+
+The topic labels are for browsing and stay. The eval reports any action-word
+labels (`Do`, `Respond`), which the prompt forbids.
 
 ```bash
 bin/deploy-vm            # pull main on the VM, rebuild, restart
