@@ -2,15 +2,27 @@ FROM racket/racket:9.0
 
 WORKDIR /app
 
-# Install Racket package dependencies (--no-docs to avoid pulling huge doc chains)
-RUN raco pkg install --auto --skip-installed --no-docs simple-oauth2 http-easy colormaps plot
+# Installation scope, so the daemon can run as an unprivileged uid (the host
+# user who owns the token files) rather than root. --no-docs avoids pulling
+# huge doc chains.
+RUN raco pkg install --scope installation --auto --skip-installed --no-docs \
+      simple-oauth2 http-easy colormaps plot
 
-# Copy application code
+# Application code, compiled at build time so startup doesn't recompile and
+# /app never needs to be writable.
 COPY . .
+RUN raco make -v bin/schemail
 
-# OAuth tokens live on a persistent volume mounted at /data/.oauth2.rkt
-# Symlink so simple-oauth2 finds them at $HOME/.oauth2.rkt
-RUN mkdir -p /data/.oauth2.rkt && \
-    ln -sf /data/.oauth2.rkt /root/.oauth2.rkt
+# State lives on a volume at /data, which is also $HOME, so simple-oauth2
+# finds its tokens at $HOME/.oauth2.rkt/{tokens,preferences}. USER must match
+# the name the tokens were stored under (simple-oauth2 keys them by $USER).
+ENV HOME=/data \
+    USER=danenberg \
+    SCHEMAIL_HEADLESS=1 \
+    SCHEMAIL_HEARTBEAT=/data/heartbeat
 
-CMD ["racket", "bin/schemail", "daemon", "--recent-only", "--classifier", "experiment-3", "--model", "haiku-4-5", "--interval", "5"]
+# Unhealthy if no poll has completed in 20 minutes (interval is 5).
+HEALTHCHECK --interval=5m --timeout=10s --start-period=10m \
+  CMD test $(( $(date +%s) - $(cat /data/heartbeat) )) -lt 1200
+
+CMD ["racket", "bin/schemail", "daemon", "--classifier", "experiment-4", "--model", "haiku-4-5", "--interval", "5"]

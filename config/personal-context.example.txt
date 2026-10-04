@@ -1,0 +1,3 @@
+Peter is an engineer at <employer>. He organizes <recurring events> and
+builds projects such as <project>. He has kids in <school district> and owns
+a home with an HOA.

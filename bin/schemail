@@ -57,7 +57,8 @@ PROCESS OPTIONS:
                             Options: hybrid, pure-llm, selective-llm
   
   --classifier EXPERIMENT   Use structured classifier instead of filters
-                            Options: experiment-1, experiment-2, experiment-3
+                            Options: experiment-1, experiment-2, experiment-3,
+                                     experiment-4 (strict signal-only inbox)
   
   --model MODEL             LLM model to use (default: haiku-4-5)
                             Options: haiku-4-5 (cheap), sonnet-4-5 (smart)
@@ -371,9 +372,10 @@ NOTES:
            ['experiment-1 experiment-1-prompt]
            ['experiment-2 experiment-2-prompt]
            ['experiment-3 experiment-3-prompt]
+           ['experiment-4 experiment-4-prompt]
            [else 
             (displayln (format "Unknown classifier experiment: ~a" classifier-experiment))
-            (displayln "Valid options: experiment-1, experiment-2, experiment-3")
+            (displayln "Valid options: experiment-1, experiment-2, experiment-3, experiment-4")
             (exit 1)])))
   
   ;; Select filter strategy (if not using classifier)
@@ -419,12 +421,17 @@ NOTES:
             #t))
       
       (when should-process?
-        (if classifier-prompt
-            ;; Use structured classifier with labels hash and model parameter
-            (parameterize ([current-model model])
-              (classify-email msg classifier-prompt labels-hash #:dry-run? dry-run?))
-            ;; Use filter strategy
-            (process-message-with-filters msg filters #:dry-run? dry-run?)))))
+        ;; A long backlog run must survive one bad message; it stays
+        ;; unlabeled, so a rerun picks it up.
+        (with-handlers ([(λ (e) (and (exn:fail? e) (not (exn:fail:schemail-auth? e))))
+                         (λ (e) (displayln (format "⚠ Skipping ~a: ~a" id (exn-message e))))])
+          (if classifier-prompt
+              ;; Use structured classifier with labels hash and model parameter
+              (parameterize ([current-model model])
+                (classify-email msg classifier-prompt labels-hash #:dry-run? dry-run?))
+              ;; Use filter strategy
+              (process-message-with-filters msg filters #:dry-run? dry-run?))
+          (void)))))
   
   ;; Determine if we need pagination
   (define needs-pagination? 
@@ -517,6 +524,8 @@ NOTES:
   (define classifier-experiment (hash-ref options 'classifier #f))
   (define model (hash-ref options 'model "claude-haiku-4-5"))
   (define filter-strategy (hash-ref options 'filter 'hybrid))
+  (define batch-size 50)
+  (define backlog? #f)
   
   ;; Default query: unprocessed emails in inbox
   ;; The -label:Schemail ensures we only process each email once
@@ -547,6 +556,7 @@ NOTES:
            ['experiment-1 experiment-1-prompt]
            ['experiment-2 experiment-2-prompt]
            ['experiment-3 experiment-3-prompt]
+           ['experiment-4 experiment-4-prompt]
            [_ #f])))
   
   ;; Load filter strategy if using filters
@@ -565,6 +575,7 @@ NOTES:
         #f))
   
   (let loop ()
+    (set! backlog? #f)  ; only a successful full batch sets it
     (define now (seconds->date (current-seconds)))
     (displayln (format "\n[~a-~a-~a ~a:~a:~a] Checking for new emails..." 
                       (date-year now)
@@ -574,13 +585,20 @@ NOTES:
                       (~r (date-minute now) #:min-width 2 #:pad-string "0")
                       (~r (date-second now) #:min-width 2 #:pad-string "0")))
     
-    (with-handlers ([exn:fail? 
+    (with-handlers ([exn:fail:schemail-auth?
+                     ;; Unrecoverable without a human: exit nonzero so the
+                     ;; supervisor shows it (docker: Restarting), instead of
+                     ;; logging "Continuing..." every N minutes forever.
+                     (λ (e)
+                       (displayln (format "✗ FATAL: ~a" (exn-message e)))
+                       (exit 2))]
+                    [exn:fail? 
                      (λ (e)
                        (displayln (format "⚠ Error: ~a" (exn-message e)))
                        (displayln "  Continuing..."))])
       
       (define messages-response 
-        (gmail-list-messages #:query query #:max-results 50))
+        (gmail-list-messages #:query query #:max-results batch-size))
       
       (define message-ids 
         (map (λ (m) (hash-ref m 'id))
@@ -588,24 +606,51 @@ NOTES:
       
       (if (empty? message-ids)
           (displayln "  ✓ No new messages")
-          (begin
+          (let ()
             (displayln (format "  → Found ~a new message(s), processing..." 
                               (length message-ids)))
             
-            ;; Process each message
-            (for ([id message-ids])
-              (define msg (gmail-get-message id))
-              (if classifier-prompt
-                  ;; Use classifier
-                  (parameterize ([current-model model])
-                    (classify-email msg classifier-prompt labels-hash #:dry-run? #f))
-                  ;; Use filters
-                  (process-message-with-filters msg filters #:dry-run? #f)))
+            ;; Process each message. One bad message (an LLM error, a message
+            ;; deleted mid-poll) must not block the ones behind it in the list:
+            ;; it stays unlabeled and is retried next poll.
+            (define failures
+              (for/sum ([id message-ids])
+                (with-handlers ([(λ (e) (and (exn:fail? e)
+                                             (not (exn:fail:schemail-auth? e))))
+                                 (λ (e)
+                                   (displayln (format "  ⚠ Skipping ~a: ~a" id (exn-message e)))
+                                   1)])
+                  (define msg (gmail-get-message id))
+                  (if classifier-prompt
+                      ;; Use classifier
+                      (parameterize ([current-model model])
+                        (classify-email msg classifier-prompt labels-hash #:dry-run? #f))
+                      ;; Use filters
+                      (process-message-with-filters msg filters #:dry-run? #f))
+                  0)))
             
-            (displayln (format "  ✓ Processed ~a message(s)" (length message-ids))))))
+            (displayln (format "  ✓ Processed ~a message(s)~a"
+                               (- (length message-ids) failures)
+                               (if (zero? failures) "" (format ", ~a failed" failures))))
+            ;; A full batch that made progress means there is backlog behind
+            ;; it: go again now instead of sleeping. The query excludes
+            ;; processed mail, so the first page is always fresh work, and
+            ;; the daemon drains a backlog at full speed, then settles.
+            (set! backlog? (and (= (length message-ids) batch-size)
+                                (< failures (length message-ids))))))
+      
+      ;; Liveness for the supervisor: a healthcheck compares this file's
+      ;; mtime to now, so "running but stuck" shows up as unhealthy.
+      (define heartbeat (getenv "SCHEMAIL_HEARTBEAT"))
+      (when heartbeat
+        (call-with-output-file heartbeat #:exists 'truncate
+          (λ (out) (write (current-seconds) out)))))
     
-    (displayln (format "  ⏳ Sleeping for ~a minutes..." interval-minutes))
-    (sleep interval-seconds)
+    (if backlog?
+        (displayln "  ↻ Full batch; backlog remains, continuing without sleep")
+        (begin
+          (displayln (format "  ⏳ Sleeping for ~a minutes..." interval-minutes))
+          (sleep interval-seconds)))
     (loop)))
 
 ;; Run test suite

@@ -52,12 +52,71 @@
 (define (format-email-for-llm message)
   (define from (or (message-from message) "Unknown"))
   (define to (or (message-header message "To") "Unknown"))
+  (define cc (message-header message "Cc"))
   (define subject (or (message-subject message) "(no subject)"))
   (define snippet (or (message-snippet message) "(no content)"))
   (define date (or (message-date message) "Unknown"))
   
-  (format "From: ~a\nTo: ~a\nDate: ~a\nSubject: ~a\n\nContent:\n~a"
-          from to date subject snippet))
+  ;; Header facts the model cannot see in the snippet. These are the
+  ;; strongest noise/signal discriminators we have, so state them plainly.
+  (define bulk-markers
+    (filter values
+            (list (and (message-header message "List-Unsubscribe") "List-Unsubscribe")
+                  (and (message-header message "List-Id") "List-Id")
+                  (let ([p (message-header message "Precedence")])
+                    (and p (format "Precedence: ~a" p)))
+                  (let ([a (message-header message "Auto-Submitted")])
+                    (and a (not (string-ci=? a "no")) (format "Auto-Submitted: ~a" a))))))
+  (define corresponded (sender-corresponded? from))
+  
+  (format (string-append
+           "From: ~a\nTo: ~a\n~aDate: ~a\nSubject: ~a\n\n"
+           "Bulk/automation headers: ~a\n"
+           "Peter has emailed this sender before: ~a\n\n"
+           "Content:\n~a")
+          from to (if cc (format "Cc: ~a\n" cc) "") date subject
+          (if (empty? bulk-markers) "none" (string-join bulk-markers ", "))
+          (case corresponded [(#t) "yes"] [(#f) "no"] [else "unknown"])
+          snippet))
+
+;; Who the inbox belongs to: job, projects, family situation. Kept out of the
+;; (public) repo in config/personal-context.txt, which is gitignored; see
+;; config/personal-context.example.txt. Read once, empty if absent.
+(define personal-context
+  (let ([cached #f])
+    (λ ()
+      (unless cached
+        ;; Relative to the working directory, like config/credentials.json.
+        (define f (build-path "config" "personal-context.txt"))
+        (set! cached (if (file-exists? f)
+                         (string-append "Context: " (string-trim (file->string f)) "\n")
+                         "")))
+      cached)))
+
+;; Has Peter ever sent mail to this address? One Gmail search per distinct
+;; sender, cached for the life of the process (the daemon runs for weeks; the
+;; answer only ever flips no -> yes, and a stale "no" costs one archive).
+(define correspondent-cache (make-hash))
+
+(define (sender-address from)
+  (define m (regexp-match #rx"<([^>]+)>" from))
+  (string-downcase (string-trim (if m (cadr m) from))))
+
+(define (sender-corresponded? from)
+  (define addr (sender-address from))
+  (define answer
+    (cond
+      [(not (regexp-match? #rx"^[^@ ]+@[^@ ]+$" addr)) 'unknown]
+      [(hash-ref correspondent-cache addr #f) => values]
+      [else
+       (define a
+         (with-handlers ([exn:fail? (λ (e) 'unknown)])  ; transient: don't cache
+           (define r (gmail-list-messages #:query (format "in:sent to:~a" addr)
+                                          #:max-results 1))
+           (if (pair? (hash-ref r 'messages '())) 'yes 'no)))
+       (unless (eq? a 'unknown) (hash-set! correspondent-cache addr a))
+       a]))
+  (case answer [(yes) #t] [(no) #f] [else 'unknown]))
 
 ;; ============================================================================
 ;; Claude API with Structured Output
@@ -78,7 +137,9 @@
   
   ;; Format existing labels and inject into prompt
   (define formatted-labels (format-labels-for-prompt labels-hash))
-  (define final-prompt (string-replace prompt "{existing_labels}" formatted-labels))
+  (define final-prompt
+    (string-replace (string-replace prompt "{existing_labels}" formatted-labels)
+                    "{personal_context}" (personal-context)))
   
   ;; Debug: show labels being sent
   (unless (hash-empty? labels-hash)

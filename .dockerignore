@@ -3,9 +3,10 @@
 .oauth2.rkt/
 .opencode/
 .serena/
-compiled/
+**/compiled/
 notes/
 todo/
 plans/
 docs/
 *.md
+fly.toml

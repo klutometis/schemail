@@ -124,6 +124,25 @@
   (displayln "\n✓ Tokens stored successfully!")
   token)
 
+;; Raised when the stored grant is unusable and no human is there to fix it.
+;; A daemon must die loudly on this rather than block on (read-line) forever,
+;; which is what it used to do headless: the process looked alive, nothing
+;; was processed, and nothing said why.
+(struct exn:fail:schemail-auth exn:fail ())
+
+(define (interactive?)
+  (and (terminal-port? (current-input-port))
+       (not (getenv "SCHEMAIL_HEADLESS"))))
+
+(define (auth-dead! why)
+  (raise (exn:fail:schemail-auth
+          (format (string-append
+                   "Gmail authorization unusable: ~a\n"
+                   "  Re-authorize on a machine with a browser (racket src/force-reauth.rkt),\n"
+                   "  then copy ~~/.oauth2.rkt/{tokens,preferences} to the server.")
+                  why)
+          (current-continuation-marks))))
+
 ;; Check if token is expired
 (define (token-expired? token)
   (> (current-seconds) (token-expires token)))
@@ -159,7 +178,9 @@
     (if stored-token
         ;; Check if expired or force refresh requested
         (if (or force-refresh? (token-expired? stored-token))
-            (with-handlers ([exn:fail? (λ (e)
+            (with-handlers ([(λ (e) (and (exn:fail? e) (not (interactive?))))
+                             (λ (e) (auth-dead! (format "token refresh failed: ~a" (exn-message e))))]
+                            [exn:fail? (λ (e)
                                          (displayln "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                                          (displayln "⚠ TOKEN REFRESH FAILED")
                                          (displayln (format "  Error: ~a" (exn-message e)))
@@ -176,9 +197,11 @@
                 (displayln "Access token expired, refreshing..."))
               (force-token-refresh stored-token user-name))
             stored-token)
-        (begin
-          (displayln "No stored token found. Authorizing...")
-          (authorize-gmail)))))
+        (if (interactive?)
+            (begin
+              (displayln "No stored token found. Authorizing...")
+              (authorize-gmail))
+            (auth-dead! "no stored token (or it could not be decrypted)")))))
 
 ;; Check if an exception is a transient network error that should be retried
 (define (transient-network-error? exn)
@@ -281,4 +304,5 @@
 ;; Module exports
 (provide authorize-gmail
          get-gmail-token
-         gmail-api-request)
+         gmail-api-request
+         (struct-out exn:fail:schemail-auth))
