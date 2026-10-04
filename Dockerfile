@@ -18,7 +18,11 @@ RUN rm -f /usr/lib/racket/libssl.so.1.1 /usr/lib/racket/libcrypto.so.1.1
 # Application code, compiled at build time so startup doesn't recompile and
 # /app never needs to be writable.
 COPY . .
-RUN raco make -v bin/schemail
+# COPY keeps host modes but makes root the owner, and the daemon runs as the
+# host uid: a chmod-600 config/credentials.json was unreadable, which went
+# unnoticed for exactly one access-token lifetime (1h) until the first
+# refresh. Make /app world-readable; the image never leaves the VM.
+RUN chmod -R a+rX /app && raco make -v bin/schemail
 
 # State lives on a volume at /data, which is also $HOME, so simple-oauth2
 # finds its tokens at $HOME/.oauth2.rkt/{tokens,preferences}. USER must match
