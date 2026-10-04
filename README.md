@@ -24,6 +24,38 @@ Schemail uses large language models to intelligently classify your emails into c
 - 38% kept in inbox for human action
 - Zero empty parent labels
 
+## Where It Runs
+
+Since 2026-10-03 the daemon runs continuously on **vm.danenberg.ai** in a
+Docker container (`--restart unless-stopped`), classifier `experiment-4`,
+Haiku 4.5, polling every 5 minutes. Nobody has to start it.
+
+```bash
+bin/deploy-vm            # pull main on the VM, rebuild, restart
+bin/deploy-vm --tokens   # same, after re-authorizing locally
+ssh vm.danenberg.ai docker logs -f --tail 50 schemail
+ssh vm.danenberg.ai docker ps --filter name=schemail   # (healthy)?
+```
+
+- **State** is `~/.local/state/schemail` on the VM (the container's `/data`
+  and `$HOME`): the OAuth grant in `.oauth2.rkt/` and a `heartbeat` file the
+  healthcheck reads. Nothing else persists.
+- **Gitignored files** the VM checkout needs: `config/credentials.json` (the
+  OAuth client) and `config/personal-context.txt` (who the inbox belongs to,
+  fed to the prompt; see `personal-context.example.txt`). The repo is public,
+  so neither belongs in it.
+- **If auth breaks** (password change, revoked grant, six months idle), the
+  daemon exits 2 with `FATAL: Gmail authorization unusable` and Docker shows
+  it `Restarting`. Fix: `racket src/force-reauth.rkt` on a machine with a
+  browser, then `bin/deploy-vm --tokens`. It used to block on `(read-line)`
+  instead, alive and silent.
+- **Backlog**: a full batch (50) that made progress loops without sleeping,
+  so after an outage it drains what piled up, newest first, then settles.
+- **Undo**: the 2026-10-03 purge first labeled every message then in the
+  inbox `Inbox snapshot 2026-10-03` (hidden). To put back anything the purge
+  archived: search `label:inbox-snapshot-2026-10-03 -in:inbox`, select all,
+  move to inbox.
+
 ## Quick Start
 
 ### Prerequisites

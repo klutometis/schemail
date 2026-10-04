@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Deploy the schemail daemon to vm.danenberg.ai as a Docker container.
+#
+#   bin/deploy-vm            pull origin/main on the VM, build, (re)start
+#   bin/deploy-vm --tokens   also push ~/.oauth2.rkt/{tokens,preferences}
+#                            (after re-authorizing locally with
+#                            racket src/force-reauth.rkt)
+#
+# Layout on the VM:
+#   ~/prg/email                       git checkout (+ gitignored
+#                                     config/credentials.json and
+#                                     config/personal-context.txt)
+#   ~/.local/state/schemail           /data in the container, and its $HOME:
+#     .oauth2.rkt/{tokens,preferences}  the Gmail grant
+#     heartbeat                       epoch of the last completed poll
+#
+# The container restarts on failure and on reboot (--restart unless-stopped).
+# Watch it with:  ssh vm.danenberg.ai docker logs -f --tail 50 schemail
+set -euo pipefail
+
+HOST=${SCHEMAIL_HOST:-vm.danenberg.ai}
+
+if [[ ${1:-} == --tokens ]]; then
+  scp -q ~/.oauth2.rkt/tokens ~/.oauth2.rkt/preferences \
+    "$HOST":.local/state/schemail/.oauth2.rkt/
+  # Verify the far end, not scp's exit code.
+  local_sum=$(cat ~/.oauth2.rkt/tokens ~/.oauth2.rkt/preferences | sha256sum)
+  remote_sum=$(ssh "$HOST" 'cat ~/.local/state/schemail/.oauth2.rkt/{tokens,preferences} | sha256sum')
+  [[ $local_sum == "$remote_sum" ]] || { echo "token copy mismatch" >&2; exit 1; }
+  echo "tokens copied"
+fi
+
+ssh "$HOST" bash -s <<'EOF'
+set -euo pipefail
+cd ~/prg/email
+git pull -q --ff-only
+rev=$(git rev-parse --short HEAD)
+for f in config/credentials.json config/personal-context.txt \
+         ~/.local/state/schemail/.oauth2.rkt/tokens; do
+  [[ -f $f ]] || { echo "missing $f" >&2; exit 1; }
+done
+docker build -q -t "schemail:$rev" -t schemail:latest .
+key=$(zsh -c 'source ~/.zshenv 2>/dev/null; print -r -- $ANTHROPIC_API_KEY')
+[[ -n $key ]] || { echo "ANTHROPIC_API_KEY not set on $(hostname)" >&2; exit 1; }
+docker rm -f schemail >/dev/null 2>&1 || true
+ANTHROPIC_API_KEY=$key docker run -d --name schemail \
+  --restart unless-stopped \
+  --user "$(id -u):$(id -g)" \
+  -e ANTHROPIC_API_KEY \
+  -v "$HOME/.local/state/schemail:/data" \
+  --log-opt max-size=20m --log-opt max-file=5 \
+  "schemail:$rev" >/dev/null
+sleep 20
+docker ps --filter name=schemail --format '{{.Names}} {{.Image}} {{.Status}}'
+docker logs --tail 15 schemail 2>&1
+EOF

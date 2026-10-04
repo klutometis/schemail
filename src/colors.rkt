@@ -2,9 +2,11 @@
 
 ;; Color utilities for label coloring
 
+;; plot/no-gui, not plot: plain `plot` loads racket/gui, which dies with
+;; "Gtk initialization failed" on any headless host (the VM container).
 (require colormaps/tol
          colormaps/cb
-         plot
+         plot/no-gui
          plot/utils
          racket/match)
 
