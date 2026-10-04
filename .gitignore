@@ -17,3 +17,5 @@ compiled/
 
 # Serena state
 .serena/
+
+__pycache__/
