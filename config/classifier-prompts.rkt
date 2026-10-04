@@ -242,7 +242,9 @@ For context, you've previously created these labels:
 LABEL GUIDELINES:
 - Choose the label that best describes this email
 - Reuse existing labels when they're a good fit
+- Create new labels only when nothing existing fits
 - Keep labels simple and flat: single word or short phrase
+- Do NOT use action words (Do, Respond, Defer) as labels; label by topic
 
 Return:
 - label: topic category name

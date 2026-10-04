@@ -281,8 +281,13 @@ def main():
         keep, raw[name] = run_prompt(name, p, rep + rnd)
         methods['LLM ' + name] = (lambda keep: lambda m: keep.get(m['id']))(keep)
     primary, llm5 = BASELINES['gmail Primary tab'], methods['LLM experiment-5']
-    methods['Primary AND exp-5'] = lambda m: primary(m) and llm5(m)
+    # What the daemon does: keep-replies-to-peter in src/llm-classifier.rkt
+    methods['DEPLOYED: exp-5 + thread rule'] = lambda m: llm5(m) or m.get('in_thread') is True
     methods['Primary OR exp-5'] = lambda m: primary(m) or llm5(m)
+    for name, r in raw.items():
+        c = __import__('collections').Counter(v['label'] for v in r.values())
+        action = {k: v for k, v in c.items() if k.lower() in ('do', 'respond', 'defer')}
+        print(f'{name}: {len(c)} distinct labels; action-word labels: {action or "none"}')
 
     replies = [m for m in rep if m['kind'] == 'reply']
     print(f"{'method':32} {'recall':>7} {'(replies)':>9} {'keep rate':>9} {'~kept/day':>9}")

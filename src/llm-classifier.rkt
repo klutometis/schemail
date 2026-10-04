@@ -88,7 +88,12 @@
 ;; threads he started (a printer about his order, a lumber yard) among the
 ;; misses; the sender check alone misses them when the reply comes from a
 ;; different address than the one he wrote to.
+(define thread-answers (make-weak-hasheq))  ; message -> answer; one API call each
+
 (define (peter-wrote-earlier-in-thread? message)
+  (hash-ref! thread-answers message (λ () (wrote-earlier-in-thread message))))
+
+(define (wrote-earlier-in-thread message)
   (with-handlers ([exn:fail? (λ (e) 'unknown)])
     (define tid (hash-ref message 'threadId #f))
     (define ts (string->number (hash-ref message 'internalDate "0")))
@@ -299,7 +304,8 @@
   (displayln (format "Subject: ~a" (message-subject message)))
   (displayln (format "Mode: ~a" (if dry-run? "DRY RUN" "LIVE")))
   
-  (define classification (claude-classify message prompt labels-hash))
+  (define classification
+    (keep-replies-to-peter message (claude-classify message prompt labels-hash)))
   (apply-classification message classification labels-hash #:dry-run? dry-run?)
   
   ;; Update labels hash with the label we just used (unless dry-run)
@@ -312,6 +318,22 @@
   (values (hash-ref classification 'label)
           (hash-ref classification 'should_archive)
           (hash-ref classification 'rationale)))
+
+;; A reply in a thread Peter wrote in is kept, whatever the model says. The
+;; model is told this and still archives some as "system-generated" (a support
+;; agent answering his ticket, a printer sending his corrected cover proof).
+;; Measured by eval/replied_recall.py: recall 91.5% -> 93.6%, and none of 400
+;; random inbound messages added. Bounces of his own mail come with it.
+(define (keep-replies-to-peter message classification)
+  (if (and (hash-ref classification 'should_archive)
+           (eq? #t (peter-wrote-earlier-in-thread? message)))
+      (begin
+        (displayln "  → Override: reply in a thread Peter wrote in; keeping")
+        (hash-set* classification
+                   'should_archive #f
+                   'rationale (format "Kept: reply in a thread Peter wrote in (model said: ~a)"
+                                      (hash-ref classification 'rationale))))
+      classification))
 
 ;; Convenience wrapper for dry-run
 (define (classify-email-dry-run message prompt labels-hash)
